@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>glim_ros</name>
+  <version>0.0.0</version>
+  <description>3D LiDAR-IMU Mapping Framework</description>
+
+  <maintainer email="k.koide@aist.go.jp">k.koide</maintainer>
+
+  <license>GPLv3</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>glim</depend>
+  <depend>roslib</depend>
+  <depend>rosbag</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nmea_msgs</depend>
+
+</package>
+
