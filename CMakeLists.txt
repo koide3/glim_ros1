@@ -6,7 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
 set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build." FORCE)
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 
-find_package(catkin REQUIRED COMPONENTS glim roslib rosbag sensor_msgs nmea_msgs)
+find_package(catkin REQUIRED COMPONENTS glim tf2_ros roslib rosbag sensor_msgs nmea_msgs)
 
 find_package(glim REQUIRED)
 find_package(Eigen3 REQUIRED)
