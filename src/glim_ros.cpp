@@ -16,12 +16,13 @@
 #include <glim/util/ros_cloud_converter.hpp>
 #include <glim/preprocess/cloud_preprocessor.hpp>
 #include <glim/frontend/async_odometry_estimation.hpp>
+#include <glim/frontend/odometry_estimation.hpp>
 #include <glim/frontend/odometry_estimation_ct.hpp>
 #include <glim/backend/async_sub_mapping.hpp>
 #include <glim/backend/sub_mapping.hpp>
-#include <glim/backend/sub_mapping_ct.hpp>
 #include <glim/backend/async_global_mapping.hpp>
 #include <glim/backend/global_mapping_ct.hpp>
+#include <glim/backend/global_mapping.hpp>
 #include <glim/viewer/standard_viewer.hpp>
 
 #include <glim/util/easy_profiler.hpp>
@@ -37,14 +38,21 @@ public:
     standard_viewer.reset(new glim::StandardViewer);
 
     preprocessor.reset(new glim::CloudPreprocessor);
-    std::shared_ptr<glim::OdometryEstimationBase> odom(new glim::OdometryEstimationCT);
+    // std::shared_ptr<glim::OdometryEstimationBase> odom(new glim::OdometryEstimationCT);
+    std::shared_ptr<glim::OdometryEstimationBase> odom(new glim::OdometryEstimation);
     odometry_estimation.reset(new glim::AsyncOdometryEstimation(odom));
 
     std::shared_ptr<glim::SubMappingBase> sub(new glim::SubMapping);
     sub_mapping.reset(new glim::AsyncSubMapping(sub));
 
-    std::shared_ptr<glim::GlobalMappingBase> global(new glim::GlobalMappingCT);
+    std::shared_ptr<glim::GlobalMappingBase> global(new glim::GlobalMapping);
     global_mapping.reset(new glim::AsyncGlobalMapping(global));
+  }
+
+  void insert_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel) {
+    odometry_estimation->insert_imu(stamp, linear_acc, angular_vel);
+    sub_mapping->insert_imu(stamp, linear_acc, angular_vel);
+    global_mapping->insert_imu(stamp, linear_acc, angular_vel);
   }
 
   void insert_frame(const glim::RawPoints::ConstPtr& raw_points) {
@@ -96,7 +104,7 @@ int main(int argc, char** argv) {
   GlimROS glim_ros;
 
   const std::string bag_filename = "/home/koide/datasets/lio_sam/rooftop_ouster_dataset.bag";
-  std::vector<std::string> topics = {"/points_raw"};
+  std::vector<std::string> topics = {"/points_raw", "/imu_raw"};
 
   rosbag::Bag bag(bag_filename, rosbag::bagmode::Read);
   if (!bag.isOpen()) {
@@ -109,13 +117,19 @@ int main(int argc, char** argv) {
       break;
     }
 
-    const auto points_msg = m.instantiate<sensor_msgs::PointCloud2>();
-    if (points_msg == nullptr) {
-      continue;
+    const auto imu_msg = m.instantiate<sensor_msgs::Imu>();
+    if (imu_msg) {
+      const double stamp = imu_msg->header.stamp.toSec();
+      const auto& linear_acc = imu_msg->linear_acceleration;
+      const auto& angular_vel = imu_msg->angular_velocity;
+      glim_ros.insert_imu(stamp, Eigen::Vector3d(linear_acc.x, linear_acc.y, linear_acc.z), Eigen::Vector3d(angular_vel.x, angular_vel.y, angular_vel.z));
     }
 
-    auto raw_points = glim::RawPoints::extract(points_msg);
-    glim_ros.insert_frame(raw_points);
+    const auto points_msg = m.instantiate<sensor_msgs::PointCloud2>();
+    if (points_msg) {
+      auto raw_points = glim::RawPoints::extract(points_msg);
+      glim_ros.insert_frame(raw_points);
+    }
 
     // Ros-related
     rosgraph_msgs::Clock::Ptr clock_msg(new rosgraph_msgs::Clock);
