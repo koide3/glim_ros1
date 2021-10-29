@@ -10,6 +10,8 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>glim</depend>
+  <depend>glim_ext</depend>
+  <depend>cv_bridge</depend>
   <depend>tf2_ros</depend>
   <depend>roslib</depend>
   <depend>rosbag</depend>
