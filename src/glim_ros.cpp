@@ -80,7 +80,7 @@ public:
   }
 
   void insert_frame(const glim::RawPoints::ConstPtr& raw_points) {
-    while (odometry_estimation->input_queue_size() > 10) {
+    while(odometry_estimation->input_queue_size() > 10 || orb_slam_frontend->num_images_in_queue() > 10) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
         const auto& linear_acc = imu_msg->linear_acceleration;
         const auto& angular_vel = imu_msg->angular_velocity;
 
-        if (m.getTopic().find("alphasense") != std::string::npos) {
+        if(m.getTopic().find("camera") != std::string::npos) {
           glim_ros.insert_alphasense_imu(stamp, Eigen::Vector3d(linear_acc.x, linear_acc.y, linear_acc.z), Eigen::Vector3d(angular_vel.x, angular_vel.y, angular_vel.z));
         } else {
           glim_ros.insert_imu(stamp, Eigen::Vector3d(linear_acc.x, linear_acc.y, linear_acc.z), Eigen::Vector3d(angular_vel.x, angular_vel.y, angular_vel.z));
@@ -193,11 +193,11 @@ int main(int argc, char** argv) {
   // const std::string bag_filename = "/home/koide/datasets/map_iv/data2/points.bag";
   // std::vector<std::string> topics = {"/points_raw_ex"};
 
-  // const std::string bag_path = "/home/koide/datasets/newer_college/01_short_experiment/rosbag_compressed/*";
-  // std::vector<std::string> topics = {"/os1_cloud_node/imu", "/os1_cloud_node/points", "/camera/infra1/image_rect_raw/compressed"};
+  const std::string bag_path = "/home/koide/datasets/newer_college/01_short_experiment/rosbag_compressed/*";
+  std::vector<std::string> topics = {"/os1_cloud_node/imu", "/os1_cloud_node/points", "/camera/imu", "/camera/infra1/image_rect_raw/compressed"};
 
-  const std::string bag_path = "/home/koide/datasets/hilti/uzh_tracking_area_run2.bag";
-  std::vector<std::string> topics = {"/os_cloud_node/points", "/os_cloud_node/imu", "/alphasense/cam1/image_raw", "/alphasense/imu"};
+  // const std::string bag_path = "/home/koide/datasets/hilti/uzh_tracking_area_run2.bag";
+  // std::vector<std::string> topics = {"/os_cloud_node/points", "/os_cloud_node/imu", "/alphasense/cam1/image_raw", "/alphasense/imu"};
 
   std::vector<std::string> bag_filenames;
 
