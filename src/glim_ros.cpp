@@ -80,7 +80,7 @@ public:
   }
 
   void insert_frame(const glim::RawPoints::ConstPtr& raw_points) {
-    while(odometry_estimation->input_queue_size() > 10 || orb_slam_frontend->num_images_in_queue() > 10) {
+    while(odometry_estimation->input_queue_size() > 10) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
