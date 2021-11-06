@@ -45,6 +45,9 @@ public:
     const std::string config_ext_path = ros::package::getPath("glim_ext") + "/config";
     glim::GlobalConfigExt::instance(config_ext_path);
 
+    const std::string config_ros_path = ros::package::getPath("glim_ros") + "/config/glim_rosbag.json";
+    config.reset(new glim::Config(config_ros_path));
+
     rviz_viewer.reset(new glim::RvizViewer);
     standard_viewer.reset(new glim::StandardViewer);
 
@@ -75,12 +78,20 @@ public:
     global_mapping->insert_imu(stamp, linear_acc, angular_vel);
   }
 
-  void insert_alphasense_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel) {
-    orb_slam_frontend->insert_imu(stamp, linear_acc, angular_vel);
+  void insert_vi_image(const double stamp, const cv::Mat& image) {
+    if (orb_slam_frontend) {
+      orb_slam_frontend->insert_image(stamp, image);
+    }
+  }
+
+  void insert_vi_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel) {
+    if (orb_slam_frontend) {
+      orb_slam_frontend->insert_imu(stamp, linear_acc, angular_vel);
+    }
   }
 
   void insert_frame(const glim::RawPoints::ConstPtr& raw_points) {
-    while(odometry_estimation->input_queue_size() > 10) {
+    while (odometry_estimation->input_queue_size() > 10) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
@@ -110,7 +121,11 @@ public:
 
   void save(const std::string& path) { global_mapping->save(path); }
 
+  const glim::Config& get_config() const { return *config; }
+
 private:
+  std::unique_ptr<glim::Config> config;
+
   std::unique_ptr<glim::CloudPreprocessor> preprocessor;
   std::unique_ptr<glim::AsyncOdometryEstimation> odometry_estimation;
   std::unique_ptr<glim::AsyncSubMapping> sub_mapping;
@@ -125,12 +140,53 @@ private:
 };
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "glim_ros");
+  if (argc < 2) {
+    std::cerr << "usage: glim_rosbag input_rosbag_path" << std::endl;
+    return 0;
+  }
+
+  ros::init(argc, argv, "glim_rosbag");
   ros::NodeHandle nh;
   ros::Publisher clock_pub = nh.advertise<rosgraph_msgs::Clock>("/clock", 1);
 
+  // Initialize GLIM
   GlimROS glim_ros;
 
+  // List input topics
+  const auto topics = glim_ros.get_config().param<std::vector<std::string>>("glim_rosbag", "topics");
+  if (!topics) {
+    std::cerr << "error: topics must be specified" << std::endl;
+    return 1;
+  }
+
+  std::cout << "topics:" << std::endl;
+  for (const auto& topic : *topics) {
+    std::cout << "- " << topic << std::endl;
+  }
+
+  // List input rosbag filenames
+  const std::string bag_path = argv[1];
+  std::vector<std::string> bag_filenames;
+
+  for (int i = 1; i < argc; i++) {
+    std::vector<std::string> filenames;
+    glob_t globbuf;
+    int ret = glob(bag_path.c_str(), 0, nullptr, &globbuf);
+    for (int i = 0; i < globbuf.gl_pathc; i++) {
+      filenames.push_back(globbuf.gl_pathv[i]);
+    }
+    globfree(&globbuf);
+
+    std::sort(filenames.begin(), filenames.end());
+    bag_filenames.insert(bag_filenames.end(), filenames.begin(), filenames.end());
+  }
+
+  std::cout << "bag_filenames:" << std::endl;
+  for (const auto& bag_filename : bag_filenames) {
+    std::cout << "- " << bag_filename << std::endl;
+  }
+
+  // Bag read function
   const auto read_bag = [&](const std::string& bag_filename, const std::vector<std::string>& topics) {
     std::cout << "opening " << bag_filename << std::endl;
 
@@ -151,8 +207,8 @@ int main(int argc, char** argv) {
         const auto& linear_acc = imu_msg->linear_acceleration;
         const auto& angular_vel = imu_msg->angular_velocity;
 
-        if(m.getTopic().find("camera") != std::string::npos) {
-          glim_ros.insert_alphasense_imu(stamp, Eigen::Vector3d(linear_acc.x, linear_acc.y, linear_acc.z), Eigen::Vector3d(angular_vel.x, angular_vel.y, angular_vel.z));
+        if (m.getTopic() == glim_ros.get_config().param<std::string>("glim_rosbag", "vi_imu_topic", "")) {
+          glim_ros.insert_vi_imu(stamp, Eigen::Vector3d(linear_acc.x, linear_acc.y, linear_acc.z), Eigen::Vector3d(angular_vel.x, angular_vel.y, angular_vel.z));
         } else {
           glim_ros.insert_imu(stamp, Eigen::Vector3d(linear_acc.x, linear_acc.y, linear_acc.z), Eigen::Vector3d(angular_vel.x, angular_vel.y, angular_vel.z));
         }
@@ -167,13 +223,21 @@ int main(int argc, char** argv) {
       const auto compressed_img_msg = m.instantiate<sensor_msgs::CompressedImage>();
       if (compressed_img_msg) {
         auto cv_image = cv_bridge::toCvCopy(compressed_img_msg, "bgr8");
-        glim_ros.insert_image(compressed_img_msg->header.stamp.toSec(), cv_image->image);
+        if (m.getTopic() == glim_ros.get_config().param<std::string>("glim_rosbag", "vi_image_topic", "")) {
+          glim_ros.insert_vi_image(compressed_img_msg->header.stamp.toSec(), cv_image->image);
+        } else {
+          glim_ros.insert_image(compressed_img_msg->header.stamp.toSec(), cv_image->image);
+        }
       }
 
       const auto img_msg = m.instantiate<sensor_msgs::Image>();
       if (img_msg) {
         auto cv_image = cv_bridge::toCvCopy(img_msg, "bgr8");
-        glim_ros.insert_image(img_msg->header.stamp.toSec(), cv_image->image);
+        if (m.getTopic() == glim_ros.get_config().param<std::string>("glim_rosbag", "vi_image_topic", "")) {
+          glim_ros.insert_vi_image(img_msg->header.stamp.toSec(), cv_image->image);
+        } else {
+          glim_ros.insert_image(img_msg->header.stamp.toSec(), cv_image->image);
+        }
       }
 
       // Ros-related
@@ -187,31 +251,9 @@ int main(int argc, char** argv) {
     return true;
   };
 
-  // const std::string bag_filename = "/home/koide/datasets/lio_sam/rooftop_ouster_dataset.bag";
-  // std::vector<std::string> topics = {"/points_raw", "/imu_raw"};
-
-  // const std::string bag_filename = "/home/koide/datasets/map_iv/data2/points.bag";
-  // std::vector<std::string> topics = {"/points_raw_ex"};
-
-  const std::string bag_path = "/home/koide/datasets/newer_college/01_short_experiment/rosbag_compressed/*";
-  std::vector<std::string> topics = {"/os1_cloud_node/imu", "/os1_cloud_node/points", "/camera/imu", "/camera/infra1/image_rect_raw/compressed"};
-
-  // const std::string bag_path = "/home/koide/datasets/hilti/uzh_tracking_area_run2.bag";
-  // std::vector<std::string> topics = {"/os_cloud_node/points", "/os_cloud_node/imu", "/alphasense/cam1/image_raw", "/alphasense/imu"};
-
-  std::vector<std::string> bag_filenames;
-
-  glob_t globbuf;
-  int ret = glob(bag_path.c_str(), 0, nullptr, &globbuf);
-  for (int i = 0; i < globbuf.gl_pathc; i++) {
-    bag_filenames.push_back(globbuf.gl_pathv[i]);
-  }
-  globfree(&globbuf);
-
-  std::sort(bag_filenames.begin(), bag_filenames.end());
-
+  // Read all rosbags
   for (const auto& bag_filename : bag_filenames) {
-    if (!read_bag(bag_filename, topics)) {
+    if (!read_bag(bag_filename, *topics)) {
       break;
     }
   }
