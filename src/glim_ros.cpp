@@ -53,7 +53,7 @@ public:
 
     // dbow_loop_detector.reset(new glim::DBoWLoopDetector);
     // sc_loop_detector.reset(new glim::ScanContextLoopDetector);
-    orb_slam_frontend.reset(new glim::OrbSLAMFrontend(true));
+    orb_slam_frontend.reset(new glim::OrbSLAMFrontend(true, true));
 
     preprocessor.reset(new glim::CloudPreprocessor);
     std::shared_ptr<glim::OdometryEstimationBase> odom(new glim::OdometryEstimation);

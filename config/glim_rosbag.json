@@ -4,9 +4,9 @@
       "/os_cloud_node/imu",
       "/os_cloud_node/points",
       "/alphasense/imu",
-      "/alphasense/cam1/image_raw"
+      "/alphasense/cam0/image_raw"
     ],
     "vi_imu_topic": "/alphasense/imu",
-    "vi_image_topic": "/alphasense/cam1/image_raw"
+    "vi_image_topic": "/alphasense/cam0/image_raw"
   }
 }
