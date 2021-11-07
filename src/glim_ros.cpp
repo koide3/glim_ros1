@@ -28,10 +28,12 @@
 #include <glim/backend/global_mapping.hpp>
 #include <glim/viewer/standard_viewer.hpp>
 
+#ifdef BUILD_WITH_GLIM_EXT
 #include <glim_ext/util/config_ext.hpp>
 #include <glim_ext/dbow_loop_detector.hpp>
 #include <glim_ext/scan_context_loop_detector.hpp>
 #include <glim_ext/orb_slam_frontend.hpp>
+#endif
 
 #include <glim/util/easy_profiler.hpp>
 #include <glim_ros/rviz_viewer.hpp>
@@ -42,18 +44,20 @@ public:
     const std::string config_path = ros::package::getPath("glim") + "/config";
     glim::GlobalConfig::instance(config_path);
 
-    const std::string config_ext_path = ros::package::getPath("glim_ext") + "/config";
-    glim::GlobalConfigExt::instance(config_ext_path);
-
     const std::string config_ros_path = ros::package::getPath("glim_ros") + "/config/glim_rosbag.json";
     config.reset(new glim::Config(config_ros_path));
 
     rviz_viewer.reset(new glim::RvizViewer);
     standard_viewer.reset(new glim::StandardViewer);
 
+#ifdef BUILD_WITH_GLIM_EXT
+    const std::string config_ext_path = ros::package::getPath("glim_ext") + "/config";
+    glim::GlobalConfigExt::instance(config_ext_path);
+
     // dbow_loop_detector.reset(new glim::DBoWLoopDetector);
     // sc_loop_detector.reset(new glim::ScanContextLoopDetector);
-    orb_slam_frontend.reset(new glim::OrbSLAMFrontend(true, true));
+    orb_slam_frontend.reset(new glim::OrbSLAMFrontend(true, false));
+#endif
 
     preprocessor.reset(new glim::CloudPreprocessor);
     std::shared_ptr<glim::OdometryEstimationBase> odom(new glim::OdometryEstimation);
@@ -79,15 +83,19 @@ public:
   }
 
   void insert_vi_image(const double stamp, const cv::Mat& image) {
+#ifdef BUILD_WITH_GLIM_EXT
     if (orb_slam_frontend) {
       orb_slam_frontend->insert_image(stamp, image);
     }
+#endif
   }
 
   void insert_vi_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel) {
+#ifdef BUILD_WITH_GLIM_EXT
     if (orb_slam_frontend) {
       orb_slam_frontend->insert_imu(stamp, linear_acc, angular_vel);
     }
+#endif
   }
 
   void insert_frame(const glim::RawPoints::ConstPtr& raw_points) {
@@ -131,9 +139,12 @@ private:
   std::unique_ptr<glim::AsyncSubMapping> sub_mapping;
   std::unique_ptr<glim::AsyncGlobalMapping> global_mapping;
 
+#ifdef BUILD_WITH_GLIM_EXT
   std::unique_ptr<glim::DBoWLoopDetector> dbow_loop_detector;
   std::unique_ptr<glim::ScanContextLoopDetector> sc_loop_detector;
+  // std::unique_ptr<glim::DSOFrontend> dso_frontend;
   std::unique_ptr<glim::OrbSLAMFrontend> orb_slam_frontend;
+#endif
 
   std::unique_ptr<glim::RvizViewer> rviz_viewer;
   std::unique_ptr<glim::StandardViewer> standard_viewer;
