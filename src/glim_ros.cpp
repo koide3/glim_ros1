@@ -16,6 +16,7 @@
 #include <rosgraph_msgs/Clock.h>
 
 #include <glim/util/config.hpp>
+#include <glim/util/easy_profiler.hpp>
 #include <glim/util/console_colors.hpp>
 #include <glim/util/ros_cloud_converter.hpp>
 #include <glim/preprocess/cloud_preprocessor.hpp>
@@ -35,7 +36,6 @@
 #include <glim_ext/orb_slam_frontend.hpp>
 #endif
 
-#include <glim/util/easy_profiler.hpp>
 #include <glim_ros/rviz_viewer.hpp>
 
 class GlimROS {
@@ -47,17 +47,20 @@ public:
     const std::string config_ros_path = ros::package::getPath("glim_ros") + "/config/glim_rosbag.json";
     config.reset(new glim::Config(config_ros_path));
 
-    rviz_viewer.reset(new glim::RvizViewer);
-    standard_viewer.reset(new glim::StandardViewer);
-
 #ifdef BUILD_WITH_GLIM_EXT
     const std::string config_ext_path = ros::package::getPath("glim_ext") + "/config";
     glim::GlobalConfigExt::instance(config_ext_path);
 
     // dbow_loop_detector.reset(new glim::DBoWLoopDetector);
     // sc_loop_detector.reset(new glim::ScanContextLoopDetector);
-    orb_slam_frontend.reset(new glim::OrbSLAMFrontend(true, false));
+    // orb_slam_frontend.reset(new glim::OrbSLAMFrontend(true, false));
 #endif
+
+#ifdef BUILD_WITH_VIEWER
+    standard_viewer.reset(new glim::StandardViewer);
+#endif
+
+    rviz_viewer.reset(new glim::RvizViewer);
 
     preprocessor.reset(new glim::CloudPreprocessor);
     std::shared_ptr<glim::OdometryEstimationBase> odom(new glim::OdometryEstimation);
@@ -99,7 +102,7 @@ public:
   }
 
   void insert_frame(const glim::RawPoints::ConstPtr& raw_points) {
-    while (odometry_estimation->input_queue_size() > 10) {
+    while(odometry_estimation->input_queue_size() > 10) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
@@ -122,10 +125,10 @@ public:
     }
 
     rviz_viewer->spin_once();
-    return standard_viewer->ok();
+    return viewer_ok();
   }
 
-  void wait() { standard_viewer->wait(); }
+  void wait() { viewer_wait(); }
 
   void save(const std::string& path) { global_mapping->save(path); }
 
@@ -146,8 +149,17 @@ private:
   std::unique_ptr<glim::OrbSLAMFrontend> orb_slam_frontend;
 #endif
 
-  std::unique_ptr<glim::RvizViewer> rviz_viewer;
+#ifdef BUILD_WITH_VIEWER
+  bool viewer_ok() { return standard_viewer->ok(); }
+  void viewer_wait() { standard_viewer->wait(); }
+
   std::unique_ptr<glim::StandardViewer> standard_viewer;
+#else
+  bool viewer_ok() { return true; }
+  void viewer_wait() {}
+#endif
+
+  std::unique_ptr<glim::RvizViewer> rviz_viewer;
 };
 
 int main(int argc, char** argv) {
@@ -156,7 +168,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  ros::init(argc, argv, "glim_rosbag");
+  ros::init(argc, argv, "glim_ros");
   ros::NodeHandle nh;
   ros::Publisher clock_pub = nh.advertise<rosgraph_msgs::Clock>("/clock", 1);
 
@@ -176,21 +188,20 @@ int main(int argc, char** argv) {
   }
 
   // List input rosbag filenames
-  const std::string bag_path = argv[1];
   std::vector<std::string> bag_filenames;
 
   for (int i = 1; i < argc; i++) {
     std::vector<std::string> filenames;
     glob_t globbuf;
-    int ret = glob(bag_path.c_str(), 0, nullptr, &globbuf);
+    int ret = glob(argv[i], 0, nullptr, &globbuf);
     for (int i = 0; i < globbuf.gl_pathc; i++) {
       filenames.push_back(globbuf.gl_pathv[i]);
     }
     globfree(&globbuf);
 
-    std::sort(filenames.begin(), filenames.end());
     bag_filenames.insert(bag_filenames.end(), filenames.begin(), filenames.end());
   }
+  std::sort(bag_filenames.begin(), bag_filenames.end());
 
   std::cout << "bag_filenames:" << std::endl;
   for (const auto& bag_filename : bag_filenames) {

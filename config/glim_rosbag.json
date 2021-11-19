@@ -1,6 +1,11 @@
 {
   "glim_rosbag": {
     "topics": [
+      "/os1_cloud_node/imu",
+      "/os1_cloud_node/points",
+      "/camera/infra1/image_rect_raw/compressed"
+    ],
+    "topics_hilti": [
       "/os_cloud_node/imu",
       "/os_cloud_node/points",
       "/alphasense/imu",

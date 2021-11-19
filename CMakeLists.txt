@@ -6,10 +6,13 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
 set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build." FORCE)
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 
+option(BUILD_WITH_CUDA "Build with GPU support" ON)
+option(BUILD_WITH_VIEWER "Build with visualizer" ON)
+
 find_package(catkin REQUIRED COMPONENTS cv_bridge tf2_ros roslib rosbag sensor_msgs nmea_msgs)
 
 find_package(glim REQUIRED)
-find_package(glim_ext)
+find_package(glim_ext QUIET)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(GTSAM REQUIRED)
@@ -32,6 +35,10 @@ if(glim_ext_FOUND)
   add_definitions(-DBUILD_WITH_GLIM_EXT)
 endif()
 
+if(BUILD_WITH_VIEWER)
+  add_definitions(-DBUILD_WITH_VIEWER)
+endif()
+
 include_directories(
   include
   ${OpenCV_INCLUDE_DIRS}
@@ -51,3 +58,13 @@ target_link_libraries(glim_ros
   ${glim_ext_LIBRARIES}
   ${catkin_LIBRARIES}
 )
+
+if(BUILD_WITH_VIEWER)
+  add_executable(offline_viewer
+    src/offline_viewer.cpp
+  )
+  target_link_libraries(offline_viewer
+    ${glim_LIBRARIES}
+    ${catkin_LIBRARIES}
+  )
+endif()
