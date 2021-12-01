@@ -1,0 +1,12 @@
+{
+  "glim_ros": {
+    "frontend_mode": "GPU",
+    // Viewer
+    "enable_viewer": true,
+    "enable_rviz": true,
+    // Extension modules
+    "enable_ext_dbow": false,
+    "enable_ext_scancontext": false,
+    "enable_ext_orbslam": false
+  }
+}

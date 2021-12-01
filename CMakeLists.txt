@@ -9,7 +9,7 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeR
 option(BUILD_WITH_CUDA "Build with GPU support" ON)
 option(BUILD_WITH_VIEWER "Build with visualizer" ON)
 
-find_package(catkin REQUIRED COMPONENTS cv_bridge tf2_ros roslib rosbag sensor_msgs nmea_msgs)
+find_package(catkin REQUIRED COMPONENTS cv_bridge image_transport tf2_ros roslib rosbag sensor_msgs nmea_msgs)
 
 find_package(glim REQUIRED)
 find_package(glim_ext QUIET)
@@ -48,8 +48,10 @@ include_directories(
   ${glim_ext_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
-add_executable(glim_ros
-  src/glim_ros.cpp
+
+add_library(glim_ros
+  src/glim_ros/glim_ros.cpp
+  src/glim_ros/rviz_viewer.cpp
 )
 target_link_libraries(glim_ros
   ${OpenCV_LIBRARIES}
@@ -57,6 +59,20 @@ target_link_libraries(glim_ros
   ${glim_LIBRARIES}
   ${glim_ext_LIBRARIES}
   ${catkin_LIBRARIES}
+)
+
+add_executable(glim_rosnode
+  src/glim_rosnode.cpp
+)
+target_link_libraries(glim_rosnode
+  glim_ros
+)
+
+add_executable(glim_rosbag
+  src/glim_rosbag.cpp
+)
+target_link_libraries(glim_rosbag
+  glim_ros
 )
 
 if(BUILD_WITH_VIEWER)
