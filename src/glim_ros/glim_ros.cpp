@@ -73,7 +73,11 @@ GlimROS::GlimROS() {
   std::shared_ptr<glim::OdometryEstimationBase> odom;
   if(frontend_mode == "CPU") {
   } else if(frontend_mode == "GPU") {
+#ifdef BUILD_GTSAM_EXT_GPU
     odom.reset(new glim::OdometryEstimationGPU);
+#else
+    std::cerr << console::bold_red << "error: GPU frontend is selected although glim was built without GPU support!!" << console::reset << std::endl;
+#endif
   } else if(frontend_mode == "CT") {
     odom.reset(new glim::OdometryEstimationCT);
   }
