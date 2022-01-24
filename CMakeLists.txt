@@ -39,6 +39,10 @@ if(BUILD_WITH_VIEWER)
   add_definitions(-DBUILD_WITH_VIEWER)
 endif()
 
+if(BUILD_WITH_CUDA)
+  add_definitions(-DBUILD_GTSAM_EXT_GPU)
+endif()
+
 include_directories(
   include
   ${OpenCV_INCLUDE_DIRS}
