@@ -33,7 +33,7 @@ public:
   }
 
   void points_callback(const sensor_msgs::PointCloud2ConstPtr& points_msg) {
-    auto raw_points = glim::RawPoints::extract(points_msg);
+    auto raw_points = glim::extract_raw_points(points_msg);
     glim_ros->insert_frame(raw_points);
   }
 

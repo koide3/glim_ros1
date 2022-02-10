@@ -4,6 +4,7 @@
 
 #include <glim/util/config.hpp>
 #include <glim/util/console_colors.hpp>
+#include <glim/util/time_keeper.hpp>
 #include <glim/util/ros_cloud_converter.hpp>
 #include <glim/preprocess/cloud_preprocessor.hpp>
 #include <glim/frontend/async_odometry_estimation.hpp>
@@ -27,11 +28,12 @@
 namespace glim {
 
 GlimROS::GlimROS() {
-  const std::string config_path = ros::package::getPath("glim") + "/config";
-  glim::GlobalConfig::instance(config_path);
-
   const std::string config_ros_path = ros::package::getPath("glim_ros") + "/config/glim_ros.json";
   glim::Config config_ros(config_ros_path);
+
+  const std::string config_path = ros::package::getPath("glim") + config_ros.param<std::string>("glim_ros", "config_path", "/config");
+  std::cout << "config_path: " << config_path << std::endl;
+  glim::GlobalConfig::instance(config_path);
 
   // Viewer
 #ifdef BUILD_WITH_VIEWER
@@ -66,10 +68,12 @@ GlimROS::GlimROS() {
 #endif
 
   // Preprocessing
+  time_keeper.reset(new glim::TimeKeeper);
   preprocessor.reset(new glim::CloudPreprocessor);
 
   // Odometry estimation
-  const std::string frontend_mode = config_ros.param<std::string>("glim_ros", "frontend_mode", "CPU");
+  glim::Config config_frontend(glim::GlobalConfig::get_config_path("config_frontend"));
+  const std::string frontend_mode = config_frontend.param<std::string>("odometry_estimation", "frontend_mode", "CPU");
   std::shared_ptr<glim::OdometryEstimationBase> odom;
   if(frontend_mode == "CPU") {
   } else if(frontend_mode == "GPU") {
@@ -109,12 +113,15 @@ void GlimROS::insert_image(const double stamp, const cv::Mat& image) {
 }
 
 void GlimROS::insert_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel) {
+  time_keeper->validate_imu_stamp(stamp);
+
   odometry_estimation->insert_imu(stamp, linear_acc, angular_vel);
   sub_mapping->insert_imu(stamp, linear_acc, angular_vel);
   global_mapping->insert_imu(stamp, linear_acc, angular_vel);
 }
 
-void GlimROS::insert_frame(const glim::RawPoints::ConstPtr& raw_points) {
+void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
+  time_keeper->process(raw_points);
   auto preprocessed = preprocessor->preprocess(raw_points->stamp, raw_points->times, raw_points->points);
 
   while(odometry_estimation->input_queue_size() > 10) {

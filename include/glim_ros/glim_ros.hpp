@@ -6,6 +6,7 @@
 
 namespace glim {
 
+class TimeKeeper;
 class CloudPreprocessor;
 class OdometryEstimationBase;
 class AsyncOdometryEstimation;
@@ -29,7 +30,7 @@ public:
 
   void insert_image(const double stamp, const cv::Mat& image);
   void insert_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel);
-  void insert_frame(const glim::RawPoints::ConstPtr& raw_points);
+  void insert_frame(const glim::RawPoints::Ptr& raw_points);
 
   void insert_vi_image(const double stamp, const cv::Mat& image);
   void insert_vi_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel);
@@ -46,6 +47,7 @@ private:
   std::atomic_bool kill_switch;
   std::thread thread;
 
+  std::unique_ptr<glim::TimeKeeper> time_keeper;
   std::unique_ptr<glim::CloudPreprocessor> preprocessor;
 
   std::unique_ptr<glim::AsyncOdometryEstimation> odometry_estimation;
