@@ -57,7 +57,7 @@ private:
 };
 
 int main(int argc, char** argv) {
-  if(argc < 2) {
+  if (argc < 2) {
     std::cerr << "usage: glim_rosbag input_rosbag_path" << std::endl;
     return 0;
   }
@@ -73,24 +73,24 @@ int main(int argc, char** argv) {
 
   // List input topics
   const auto topics = config_rosbag.param<std::vector<std::string>>("glim_rosbag", "topics");
-  if(!topics) {
+  if (!topics) {
     std::cerr << "error: topics must be specified" << std::endl;
     return 1;
   }
 
   std::cout << "topics:" << std::endl;
-  for(const auto& topic : *topics) {
+  for (const auto& topic : *topics) {
     std::cout << "- " << topic << std::endl;
   }
 
   // List input rosbag filenames
   std::vector<std::string> bag_filenames;
 
-  for(int i = 1; i < argc; i++) {
+  for (int i = 1; i < argc; i++) {
     std::vector<std::string> filenames;
     glob_t globbuf;
     int ret = glob(argv[i], 0, nullptr, &globbuf);
-    for(int i = 0; i < globbuf.gl_pathc; i++) {
+    for (int i = 0; i < globbuf.gl_pathc; i++) {
       filenames.push_back(globbuf.gl_pathv[i]);
     }
     globfree(&globbuf);
@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
   std::sort(bag_filenames.begin(), bag_filenames.end());
 
   std::cout << "bag_filenames:" << std::endl;
-  for(const auto& bag_filename : bag_filenames) {
+  for (const auto& bag_filename : bag_filenames) {
     std::cout << "- " << bag_filename << std::endl;
   }
 
@@ -180,8 +180,8 @@ int main(int argc, char** argv) {
   };
 
   // Read all rosbags
-  for(const auto& bag_filename : bag_filenames) {
-    if(!read_bag(bag_filename, *topics)) {
+  for (const auto& bag_filename : bag_filenames) {
+    if (!read_bag(bag_filename, *topics)) {
       break;
     }
   }
