@@ -68,25 +68,31 @@ GlimROS::GlimROS() {
 #endif
 
   // Preprocessing
+  imu_time_offset = config_ros.param<double>("glim_ros", "imu_time_offset", 0.0);
+  acc_scale = config_ros.param<double>("glim_ros", "acc_scale", 1.0);
+
   time_keeper.reset(new glim::TimeKeeper);
   preprocessor.reset(new glim::CloudPreprocessor);
 
   // Odometry estimation
   glim::Config config_frontend(glim::GlobalConfig::get_config_path("config_frontend"));
   const std::string frontend_mode = config_frontend.param<std::string>("odometry_estimation", "frontend_mode", "CPU");
+
+  bool enable_imu = true;
   std::shared_ptr<glim::OdometryEstimationBase> odom;
   if(frontend_mode == "CPU") {
   } else if(frontend_mode == "GPU") {
 #ifdef BUILD_GTSAM_EXT_GPU
     odom.reset(new glim::OdometryEstimationGPU);
 #else
-    std::cerr << console::bold_red << "error: GPU frontend is selected although glim was built without GPU support!!" << console::reset << std::endl;
+    std::cerr << console::bold_red << "error: GPU frontend is selected although glim is built without GPU support!!" << console::reset << std::endl;
 #endif
   } else if(frontend_mode == "CT") {
+    enable_imu = false;
     odom.reset(new glim::OdometryEstimationCT);
   }
 
-  odometry_estimation.reset(new glim::AsyncOdometryEstimation(odom));
+  odometry_estimation.reset(new glim::AsyncOdometryEstimation(odom, enable_imu));
 
   // Sub mapping
   std::shared_ptr<glim::SubMappingBase> sub(new glim::SubMapping);
@@ -112,19 +118,20 @@ void GlimROS::insert_image(const double stamp, const cv::Mat& image) {
   global_mapping->insert_image(stamp, image);
 }
 
-void GlimROS::insert_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel) {
+void GlimROS::insert_imu(double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel) {
+  stamp += imu_time_offset;
   time_keeper->validate_imu_stamp(stamp);
 
-  odometry_estimation->insert_imu(stamp, linear_acc, angular_vel);
-  sub_mapping->insert_imu(stamp, linear_acc, angular_vel);
-  global_mapping->insert_imu(stamp, linear_acc, angular_vel);
+  odometry_estimation->insert_imu(stamp, acc_scale * linear_acc, angular_vel);
+  sub_mapping->insert_imu(stamp, acc_scale * linear_acc, angular_vel);
+  global_mapping->insert_imu(stamp, acc_scale * linear_acc, angular_vel);
 }
 
 void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
   time_keeper->process(raw_points);
   auto preprocessed = preprocessor->preprocess(raw_points->stamp, raw_points->times, raw_points->points);
 
-  while(odometry_estimation->input_queue_size() > 10) {
+  while (odometry_estimation->input_queue_size() > 10) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
   odometry_estimation->insert_frame(preprocessed);

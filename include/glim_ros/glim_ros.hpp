@@ -29,7 +29,7 @@ public:
   ~GlimROS();
 
   void insert_image(const double stamp, const cv::Mat& image);
-  void insert_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel);
+  void insert_imu(double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel);
   void insert_frame(const glim::RawPoints::Ptr& raw_points);
 
   void insert_vi_image(const double stamp, const cv::Mat& image);
@@ -47,6 +47,8 @@ private:
   std::atomic_bool kill_switch;
   std::thread thread;
 
+  double imu_time_offset;
+  double acc_scale;
   std::unique_ptr<glim::TimeKeeper> time_keeper;
   std::unique_ptr<glim::CloudPreprocessor> preprocessor;
 
