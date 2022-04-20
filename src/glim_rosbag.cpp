@@ -187,7 +187,6 @@ int main(int argc, char** argv) {
   }
 
   glim_ros.wait();
-  std::this_thread::sleep_for(std::chrono::seconds(1));
   glim_ros.save("/tmp/dump");
 
   return 0;

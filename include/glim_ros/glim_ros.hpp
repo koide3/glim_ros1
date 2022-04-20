@@ -13,11 +13,7 @@ class AsyncOdometryEstimation;
 class AsyncSubMapping;
 class AsyncGlobalMapping;
 
-class DBoWLoopDetector;
-class ScanContextLoopDetector;
-class OrbSLAMFrontend;
-
-class RvizViewer;
+class ExtensionModule;
 class StandardViewer;
 
 /**
@@ -56,13 +52,8 @@ private:
   std::unique_ptr<glim::AsyncSubMapping> sub_mapping;
   std::unique_ptr<glim::AsyncGlobalMapping> global_mapping;
 
-#ifdef BUILD_WITH_GLIM_EXT
-  std::unique_ptr<glim::DBoWLoopDetector> dbow_loop_detector;
-  std::unique_ptr<glim::ScanContextLoopDetector> sc_loop_detector;
-  std::unique_ptr<glim::OrbSLAMFrontend> orb_slam_frontend;
-#endif
+  std::vector<std::shared_ptr<ExtensionModule>> extension_modules;
 
-  std::unique_ptr<glim::RvizViewer> rviz_viewer;
 #ifdef BUILD_WITH_VIEWER
   std::unique_ptr<glim::StandardViewer> standard_viewer;
 #endif

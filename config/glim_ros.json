@@ -4,13 +4,15 @@
     // Viewer
     "enable_viewer": true,
     "enable_rviz": false,
-    // Extension modules
-    "enable_ext_dbow": false,
-    "enable_ext_scancontext": false,
-    "enable_ext_orbslam": false,
     // IMU config
     "imu_time_offset": 0.0,
-    "acc_scale": 1.0
+    "acc_scale": 1.0,
+    // Extension modules
+    "extension_modules": [
+      // "libscan_context_loop_detector.so",
+      // "libdbow_loop_detector.so",
+      // "liborb_slam_frontend.so"
+    ]
   },
   // Following params are used for only glim_rosbag
   // To change topics of glim_rosnode, use the standard ROS remap mechanism

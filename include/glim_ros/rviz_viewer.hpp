@@ -8,12 +8,13 @@
 
 #include <glim/frontend/estimation_frame.hpp>
 #include <glim/backend/sub_map.hpp>
+#include <glim/util/extension_module.hpp>
 
 namespace glim {
 
 class TrajectoryManager;
 
-class RvizViewer {
+class RvizViewer : public ExtensionModule {
 public:
   RvizViewer();
   ~RvizViewer();
