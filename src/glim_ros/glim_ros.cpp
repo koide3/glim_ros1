@@ -6,6 +6,7 @@
 #include <glim/util/console_colors.hpp>
 #include <glim/util/time_keeper.hpp>
 #include <glim/util/extension_module.hpp>
+#include <glim/util/extension_module_ros.hpp>
 #include <glim/util/ros_cloud_converter.hpp>
 #include <glim/preprocess/cloud_preprocessor.hpp>
 #include <glim/frontend/async_odometry_estimation.hpp>
@@ -21,11 +22,14 @@
 
 namespace glim {
 
-GlimROS::GlimROS() {
-  const std::string config_ros_path = ros::package::getPath("glim_ros") + "/config/glim_ros.json";
+GlimROS::GlimROS(ros::NodeHandle& nh) {
+  std::string config_ros_path = ros::package::getPath("glim_ros") + "/config/glim_ros.json";
+  config_ros_path = nh.param<std::string>("config_ros_path", config_ros_path);
+  std::cout << "config_ros_path: " << config_ros_path << std::endl;
   glim::Config config_ros(config_ros_path);
 
-  const std::string config_path = ros::package::getPath("glim") + config_ros.param<std::string>("glim_ros", "config_path", "/config");
+  std::string config_path = ros::package::getPath("glim") + config_ros.param<std::string>("glim_ros", "config_path", "/config");
+  config_path = nh.param<std::string>("config_path", config_path);
   std::cout << "config_path: " << config_path << std::endl;
   glim::GlobalConfig::instance(config_path);
 
@@ -57,6 +61,12 @@ GlimROS::GlimROS() {
         continue;
       } else {
         extension_modules.push_back(ext_module);
+
+        auto ext_module_ros = std::dynamic_pointer_cast<ExtensionModuleROS>(ext_module);
+        if (ext_module_ros) {
+          const auto subs = ext_module_ros->create_subscriptions();
+          extension_subs.insert(extension_subs.end(), subs.begin(), subs.end());
+        }
       }
     }
   }
@@ -106,6 +116,10 @@ GlimROS::~GlimROS() {
   thread.join();
 }
 
+const std::vector<std::shared_ptr<GenericTopicSubscription>>& GlimROS::extension_subscriptions() {
+  return extension_subs;
+}
+
 void GlimROS::insert_image(const double stamp, const cv::Mat& image) {
   odometry_estimation->insert_image(stamp, image);
   sub_mapping->insert_image(stamp, image);
@@ -130,10 +144,6 @@ void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
   }
   odometry_estimation->insert_frame(preprocessed);
 }
-
-void GlimROS::insert_vi_image(const double stamp, const cv::Mat& image) {}
-
-void GlimROS::insert_vi_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel) {}
 
 void GlimROS::loop() {
   while (!kill_switch) {
@@ -169,6 +179,15 @@ bool GlimROS::ok() {
 }
 
 void GlimROS::wait() {
+  std::cout << "submap" << std::endl;
+  sub_mapping->join();
+
+  const auto submaps = sub_mapping->get_results();
+  for (const auto& submap : submaps) {
+    global_mapping->insert_submap(submap);
+  }
+  global_mapping->join();
+
   if (standard_viewer) {
     standard_viewer->wait();
   }

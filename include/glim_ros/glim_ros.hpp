@@ -1,6 +1,7 @@
 #include <atomic>
 #include <thread>
 #include <memory>
+#include <ros/ros.h>
 #include <opencv2/core.hpp>
 #include <glim/util/ros_cloud_converter.hpp>
 
@@ -14,6 +15,7 @@ class AsyncSubMapping;
 class AsyncGlobalMapping;
 
 class ExtensionModule;
+class GenericTopicSubscription;
 class StandardViewer;
 
 /**
@@ -21,15 +23,14 @@ class StandardViewer;
  */
 class GlimROS {
 public:
-  GlimROS();
+  GlimROS(ros::NodeHandle& nh);
   ~GlimROS();
+
+  const std::vector<std::shared_ptr<GenericTopicSubscription>>& extension_subscriptions();
 
   void insert_image(const double stamp, const cv::Mat& image);
   void insert_imu(double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel);
   void insert_frame(const glim::RawPoints::Ptr& raw_points);
-
-  void insert_vi_image(const double stamp, const cv::Mat& image);
-  void insert_vi_imu(const double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel);
 
   bool ok();
   void wait();
@@ -53,6 +54,7 @@ private:
   std::unique_ptr<glim::AsyncGlobalMapping> global_mapping;
 
   std::vector<std::shared_ptr<ExtensionModule>> extension_modules;
+  std::vector<std::shared_ptr<GenericTopicSubscription>> extension_subs;
 
 #ifdef BUILD_WITH_VIEWER
   std::unique_ptr<glim::StandardViewer> standard_viewer;

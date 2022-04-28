@@ -18,6 +18,7 @@
 
 #include <glim/util/config.hpp>
 #include <glim/util/console_colors.hpp>
+#include <glim/util/extension_module_ros.hpp>
 #include <glim/common/callbacks.hpp>
 
 #include <glim_ros/glim_ros.hpp>
@@ -63,23 +64,30 @@ int main(int argc, char** argv) {
   }
 
   ros::init(argc, argv, "glim_rosbag");
-  ros::NodeHandle nh;
+  ros::NodeHandle nh("~");
   ros::Publisher clock_pub = nh.advertise<rosgraph_msgs::Clock>("/clock", 1);
 
   // Initialize GLIM
-  glim::GlimROS glim_ros;
+  glim::GlimROS glim_ros(nh);
 
   glim::Config config_rosbag(ros::package::getPath("glim_ros") + "/config/glim_ros.json");
 
   // List input topics
-  const auto topics = config_rosbag.param<std::vector<std::string>>("glim_rosbag", "topics");
-  if (!topics) {
-    std::cerr << "error: topics must be specified" << std::endl;
-    return 1;
+  const std::string imu_topic = config_rosbag.param<std::string>("glim_rosbag", "imu_topic", "");
+  const std::string points_topic = config_rosbag.param<std::string>("glim_rosbag", "points_topic", "");
+  const std::string image_topic = config_rosbag.param<std::string>("glim_rosbag", "image_topic", "");
+
+  std::vector<std::string> topics = {imu_topic, points_topic, image_topic};
+  topics.erase(std::remove_if(topics.begin(), topics.end(), [](const std::string& topic) { return topic.empty(); }), topics.end());
+
+  std::unordered_map<std::string, std::vector<glim::GenericTopicSubscription::Ptr>> subscription_map;
+  for (const auto& sub : glim_ros.extension_subscriptions()) {
+    topics.push_back(sub->topic);
+    subscription_map[sub->topic].push_back(sub);
   }
 
   std::cout << "topics:" << std::endl;
-  for (const auto& topic : *topics) {
+  for (const auto& topic : topics) {
     std::cout << "- " << topic << std::endl;
   }
 
@@ -125,46 +133,56 @@ int main(int argc, char** argv) {
       }
       speed_counter.update(m.getTime());
 
-      // sensor_msgs::IMU
-      const auto imu_msg = m.instantiate<sensor_msgs::Imu>();
-      if (imu_msg) {
-        const double stamp = imu_msg->header.stamp.toSec();
-        const auto& linear_acc = imu_msg->linear_acceleration;
-        const auto& angular_vel = imu_msg->angular_velocity;
+      const std::string topic = m.getTopic();
 
-        if (m.getTopic() == config_rosbag.param<std::string>("glim_rosbag", "vi_imu_topic", "")) {
-          glim_ros.insert_vi_imu(stamp, Eigen::Vector3d(linear_acc.x, linear_acc.y, linear_acc.z), Eigen::Vector3d(angular_vel.x, angular_vel.y, angular_vel.z));
-        } else {
+      // IMU message
+      if (topic == imu_topic) {
+        const auto imu_msg = m.instantiate<sensor_msgs::Imu>();
+        if (imu_msg) {
+          const double stamp = imu_msg->header.stamp.toSec();
+          const auto& linear_acc = imu_msg->linear_acceleration;
+          const auto& angular_vel = imu_msg->angular_velocity;
+
           glim_ros.insert_imu(stamp, Eigen::Vector3d(linear_acc.x, linear_acc.y, linear_acc.z), Eigen::Vector3d(angular_vel.x, angular_vel.y, angular_vel.z));
+        } else {
+          std::cerr << glim::console::yellow << "warning: failed to instantiate IMU message" << glim::console::reset << std::endl;
         }
       }
-
-      // sensor_msgs::PointCloud2
-      const auto points_msg = m.instantiate<sensor_msgs::PointCloud2>();
-      if (points_msg) {
-        auto raw_points = glim::extract_raw_points(points_msg);
-        glim_ros.insert_frame(raw_points);
-      }
-
-      // sensor_msgs::CompressedImage
-      const auto compressed_img_msg = m.instantiate<sensor_msgs::CompressedImage>();
-      if (compressed_img_msg) {
-        auto cv_image = cv_bridge::toCvCopy(compressed_img_msg, "bgr8");
-        if (m.getTopic() == config_rosbag.param<std::string>("glim_rosbag", "vi_image_topic", "")) {
-          glim_ros.insert_vi_image(compressed_img_msg->header.stamp.toSec(), cv_image->image);
+      // PointCloud2 message
+      else if (topic == points_topic) {
+        const auto points_msg = m.instantiate<sensor_msgs::PointCloud2>();
+        if (points_msg) {
+          auto raw_points = glim::extract_raw_points(points_msg);
+          glim_ros.insert_frame(raw_points);
         } else {
+          std::cerr << glim::console::yellow << "warning: failed to instantiate PointCloud2 message" << glim::console::reset << std::endl;
+        }
+      }
+      // Image message
+      else if (topic == image_topic) {
+        // sensor_msgs::CompressedImage
+        const auto compressed_img_msg = m.instantiate<sensor_msgs::CompressedImage>();
+        if (compressed_img_msg) {
+          auto cv_image = cv_bridge::toCvCopy(compressed_img_msg, "bgr8");
           glim_ros.insert_image(compressed_img_msg->header.stamp.toSec(), cv_image->image);
         }
+
+        const auto img_msg = m.instantiate<sensor_msgs::Image>();
+        if (img_msg) {
+          auto cv_image = cv_bridge::toCvCopy(img_msg, "bgr8");
+          glim_ros.insert_image(img_msg->header.stamp.toSec(), cv_image->image);
+        }
+
+        if (!compressed_img_msg && !img_msg) {
+          std::cerr << glim::console::yellow << "warning: failed to instantiate Image message" << glim::console::reset << std::endl;
+        }
       }
 
-      // sensor_msgs::Image
-      const auto img_msg = m.instantiate<sensor_msgs::Image>();
-      if (img_msg) {
-        auto cv_image = cv_bridge::toCvCopy(img_msg, "bgr8");
-        if (m.getTopic() == config_rosbag.param<std::string>("glim_rosbag", "vi_image_topic", "")) {
-          glim_ros.insert_vi_image(img_msg->header.stamp.toSec(), cv_image->image);
-        } else {
-          glim_ros.insert_image(img_msg->header.stamp.toSec(), cv_image->image);
+      // Extension modules
+      const auto found = subscription_map.find(m.getTopic());
+      if (found != subscription_map.end()) {
+        for (const auto& sub : found->second) {
+          sub->insert_message_instance(m);
         }
       }
 
@@ -181,7 +199,7 @@ int main(int argc, char** argv) {
 
   // Read all rosbags
   for (const auto& bag_filename : bag_filenames) {
-    if (!read_bag(bag_filename, *topics)) {
+    if (!read_bag(bag_filename, topics)) {
       break;
     }
   }

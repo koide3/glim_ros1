@@ -10,13 +10,13 @@
 
 class GlimNode {
 public:
-  GlimNode() : nh(), image_transport(nh) {
+  GlimNode() : nh("~"), image_transport(nh) {
     ROS_INFO_STREAM("Starting GLIM");
-    glim_ros.reset(new glim::GlimROS());
+    glim_ros.reset(new glim::GlimROS(nh));
 
-    image_sub = image_transport.subscribe("image", 10, &GlimNode::image_callback, this);
-    imu_sub = nh.subscribe("imu", 100, &GlimNode::imu_callback, this);
-    points_sub = nh.subscribe("points", 10, &GlimNode::points_callback, this);
+    image_sub = image_transport.subscribe("/image", 10, &GlimNode::image_callback, this);
+    imu_sub = nh.subscribe("/imu", 100, &GlimNode::imu_callback, this);
+    points_sub = nh.subscribe("/points", 10, &GlimNode::points_callback, this);
   }
 
   void image_callback(const sensor_msgs::ImageConstPtr& image_msg) {
@@ -37,6 +37,11 @@ public:
     glim_ros->insert_frame(raw_points);
   }
 
+  void wait() {
+    glim_ros->wait();
+    glim_ros->save("/tmp/dump");
+  }
+
 private:
   ros::NodeHandle nh;
 
@@ -53,5 +58,7 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "glim_rosbag");
   GlimNode node;
   ros::spin();
+  node.wait();
+
   return 0;
 }

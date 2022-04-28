@@ -11,17 +11,16 @@
     "extension_modules": [
       // "libscan_context_loop_detector.so",
       // "libdbow_loop_detector.so",
-      // "liborb_slam_frontend.so"
+      // "liborb_slam_frontend.so",
+      // "libgnss_backend.so",
+      // "libglim_callback_demo.so"
     ]
   },
   // Following params are used for only glim_rosbag
   // To change topics of glim_rosnode, use the standard ROS remap mechanism
   "glim_rosbag": {
-    "topics": [
-      "/hesai/pandar",
-      "/alphasense/imu"
-    ],
-    "vi_imu_topic": "",
-    "vi_image_topic": ""
+    "imu_topic": "/imu/data_raw",
+    "points_topic": "/points_raw_ex",
+    "image_topic": ""
   }
 }
