@@ -137,7 +137,30 @@ void GlimROS::insert_imu(double stamp, const Eigen::Vector3d& linear_acc, const 
 
 void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
   time_keeper->process(raw_points);
-  auto preprocessed = preprocessor->preprocess(raw_points->stamp, raw_points->times, raw_points->points);
+
+  std::vector<int> indices;
+  indices.reserve(raw_points->size());
+  for (int i = 0; i < raw_points->size(); i++) {
+    const auto& pt = raw_points->points[i];
+    const double angle = pt.head<3>().normalized().y();
+    const double dist = pt.head<3>().norm();
+
+    if (std::abs(angle) < 60.0 * M_PI / 180.0 && dist < 0.75f) {
+      continue;
+    }
+    indices.push_back(i);
+  }
+
+  glim::RawPoints::Ptr points(new glim::RawPoints);
+  points->stamp = raw_points->stamp;
+  points->times.resize(indices.size());
+  points->intensities.resize(indices.size());
+  points->points.resize(indices.size());
+  std::transform(indices.begin(), indices.end(), points->times.begin(), [&](const int i) { return raw_points->times[i]; });
+  std::transform(indices.begin(), indices.end(), points->intensities.begin(), [&](const int i) { return raw_points->intensities[i]; });
+  std::transform(indices.begin(), indices.end(), points->points.begin(), [&](const int i) { return raw_points->points[i]; });
+
+  auto preprocessed = preprocessor->preprocess(points->stamp, points->times, points->points);
 
   while (odometry_estimation->input_queue_size() > 10) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));

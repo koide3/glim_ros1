@@ -19,8 +19,8 @@
   // Following params are used for only glim_rosbag
   // To change topics of glim_rosnode, use the standard ROS remap mechanism
   "glim_rosbag": {
-    "imu_topic": "/imu/data_raw",
-    "points_topic": "/points_raw_ex",
+    "imu_topic": "/alphasense/imu",
+    "points_topic": "/hesai/pandar",
     "image_topic": ""
   }
 }
