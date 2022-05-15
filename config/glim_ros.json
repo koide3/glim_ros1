@@ -13,6 +13,7 @@
       // "libdbow_loop_detector.so",
       // "liborb_slam_frontend.so",
       // "libgnss_backend.so",
+      "libglim_alphasense.so"
       // "libglim_callback_demo.so"
     ]
   },

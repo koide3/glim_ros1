@@ -193,12 +193,15 @@ void GlimROS::save(const std::string& path) {
   global_mapping->save(path);
 }
 
-#ifdef BUILD_WITH_VIEWER
 bool GlimROS::ok() {
+#ifdef BUILD_WITH_VIEWER
   if (!standard_viewer) {
     return true;
   }
   return standard_viewer->ok();
+#else
+  return true;
+#endif
 }
 
 void GlimROS::wait() {
@@ -211,16 +214,19 @@ void GlimROS::wait() {
   }
   global_mapping->join();
 
+#ifdef BUILD_WITH_VIEWER
   if (standard_viewer) {
     standard_viewer->wait();
   }
+#endif
 }
 
-#else
-bool GlimROS::ok() {
-  return true;
-}
-void GlimROS::wait() {}
+void GlimROS::stop() {
+#ifdef BUILD_WITH_VIEWER
+  if (standard_viewer) {
+    standard_viewer->stop();
+  }
 #endif
+}
 
 }  // namespace glim

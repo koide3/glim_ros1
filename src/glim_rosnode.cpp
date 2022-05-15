@@ -6,6 +6,8 @@
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 
+#include <glim/util/extension_module_ros.hpp>
+
 #include <glim_ros/glim_ros.hpp>
 
 class GlimNode {
@@ -14,9 +16,14 @@ public:
     ROS_INFO_STREAM("Starting GLIM");
     glim_ros.reset(new glim::GlimROS(nh));
 
-    image_sub = image_transport.subscribe("/image", 10, &GlimNode::image_callback, this);
-    imu_sub = nh.subscribe("/imu", 100, &GlimNode::imu_callback, this);
-    points_sub = nh.subscribe("/points", 10, &GlimNode::points_callback, this);
+    image_sub = image_transport.subscribe("/image", 1000, &GlimNode::image_callback, this);
+    imu_sub = nh.subscribe("/imu", 10000, &GlimNode::imu_callback, this);
+    points_sub = nh.subscribe("/points", 1000, &GlimNode::points_callback, this);
+
+    ext_subs = glim_ros->extension_subscriptions();
+    for(auto& sub: ext_subs) {
+      sub->create_subscriber(nh);
+    }
   }
 
   void image_callback(const sensor_msgs::ImageConstPtr& image_msg) {
@@ -37,8 +44,8 @@ public:
     glim_ros->insert_frame(raw_points);
   }
 
-  void wait() {
-    glim_ros->wait();
+  void stop() {
+    glim_ros->stop();
     glim_ros->save("/tmp/dump");
   }
 
@@ -50,6 +57,7 @@ private:
 
   ros::Subscriber imu_sub;
   ros::Subscriber points_sub;
+  std::vector<std::shared_ptr<glim::GenericTopicSubscription>> ext_subs;
 
   std::unique_ptr<glim::GlimROS> glim_ros;
 };
@@ -58,7 +66,7 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "glim_rosbag");
   GlimNode node;
   ros::spin();
-  node.wait();
+  node.stop();
 
   return 0;
 }

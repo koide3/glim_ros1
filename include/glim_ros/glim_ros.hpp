@@ -34,6 +34,7 @@ public:
 
   bool ok();
   void wait();
+  void stop();
 
   void save(const std::string& path);
 
