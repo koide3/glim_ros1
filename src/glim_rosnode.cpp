@@ -44,7 +44,11 @@ public:
     glim_ros->insert_frame(raw_points);
   }
 
-  void stop() {
+  void spin() {
+    while(ros::ok() && glim_ros->ok()) {
+      ros::spinOnce();
+    }
+
     glim_ros->stop();
     glim_ros->save("/tmp/dump");
   }
@@ -63,10 +67,9 @@ private:
 };
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "glim_rosbag");
+  ros::init(argc, argv, "glim_rosnode");
   GlimNode node;
-  ros::spin();
-  node.stop();
+  node.spin();
 
   return 0;
 }
