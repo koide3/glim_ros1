@@ -17,7 +17,6 @@
   <depend>roslib</depend>
   <depend>rosbag</depend>
   <depend>sensor_msgs</depend>
-  <depend>nmea_msgs</depend>
 
 </package>
 

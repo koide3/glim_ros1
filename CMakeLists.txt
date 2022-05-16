@@ -12,7 +12,7 @@ endif()
 option(BUILD_WITH_CUDA "Build with GPU support" ON)
 option(BUILD_WITH_VIEWER "Build with visualizer" ON)
 
-find_package(catkin REQUIRED COMPONENTS cv_bridge image_transport tf2_ros roslib rosbag sensor_msgs nmea_msgs)
+find_package(catkin REQUIRED COMPONENTS cv_bridge image_transport tf2_ros roslib rosbag sensor_msgs)
 
 find_package(glim REQUIRED)
 find_package(Eigen3 REQUIRED)

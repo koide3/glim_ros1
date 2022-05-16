@@ -13,7 +13,6 @@
 #include <sensor_msgs/CompressedImage.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <cv_bridge/cv_bridge.h>
-#include <nmea_msgs/Sentence.h>
 #include <rosgraph_msgs/Clock.h>
 
 #include <glim/util/config.hpp>
