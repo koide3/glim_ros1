@@ -142,10 +142,11 @@ void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
   indices.reserve(raw_points->size());
   for (int i = 0; i < raw_points->size(); i++) {
     const auto& pt = raw_points->points[i];
-    const double angle = pt.head<3>().normalized().y();
+    const double angle_y = std::acos(pt.head<3>().normalized().y());
+    const double angle_z = std::acos(pt.head<3>().normalized().z());
     const double dist = pt.head<3>().norm();
 
-    if (std::abs(angle) < 60.0 * M_PI / 180.0 && dist < 0.75f) {
+    if (std::abs(angle_y) < 60.0 * M_PI / 180.0 && dist < 1.0f) {
       continue;
     }
     indices.push_back(i);
