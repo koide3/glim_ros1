@@ -162,6 +162,9 @@ void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
   std::transform(indices.begin(), indices.end(), points->points.begin(), [&](const int i) { return raw_points->points[i]; });
 
   auto preprocessed = preprocessor->preprocess(points->stamp, points->times, points->points);
+  // note: Raw points are used only in extension modules for visualization.
+  //       If you need to reduce the memory footprint, you can safely comment out the following line.
+  preprocessed->raw_points = points;
 
   while (odometry_estimation->input_queue_size() > 10) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
