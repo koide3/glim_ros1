@@ -1,7 +1,7 @@
 <launch>
 	<node pkg="glim_ros" type="glim_rosnode" name="glim_rosnode" output="screen">
 		<remap from="image" to="/camera/infra1/image_rect_raw" />
-		<remap from="imu" to="/alphasense/imu" />
-		<remap from="points" to="/hesai/pandar" />
+		<remap from="imu" to="/livox/imu" />
+		<remap from="points" to="/livox/lidar" />
 	</node>
 </launch>

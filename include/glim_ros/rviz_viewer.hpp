@@ -46,6 +46,7 @@ private:
 
   ros::Publisher odom_pub;
   ros::Publisher pose_pub;
+  ros::Publisher transform_pub;
 
   std::mutex trajectory_mutex;
   std::unique_ptr<TrajectoryManager> trajectory;

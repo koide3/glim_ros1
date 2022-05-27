@@ -22,6 +22,7 @@ RvizViewer::RvizViewer() : nh(), private_nh("~") {
 
   odom_pub = private_nh.advertise<nav_msgs::Odometry>("/glim_ros/odom", 1);
   pose_pub = private_nh.advertise<geometry_msgs::PoseStamped>("/glim_ros/pose", 1);
+  transform_pub = private_nh.advertise<geometry_msgs::TransformStamped>("/glim_ros/transform", 1);
 
   imu_frame_id = "imu";
   lidar_frame_id = "lidar";
@@ -164,6 +165,21 @@ void RvizViewer::frontend_new_frame(const EstimationFrame::ConstPtr& new_frame) 
     pose.pose.orientation.z = quat_world_imu.z();
     pose.pose.orientation.w = quat_world_imu.w();
     pose_pub.publish(pose);
+  }
+
+  if (transform_pub.getNumSubscribers()) {
+    geometry_msgs::TransformStamped transform;
+    transform.header.stamp = ros::Time(new_frame->stamp);
+    transform.header.frame_id = imu_frame_id;
+    transform.child_frame_id = odom_frame_id;
+    transform.transform.translation.x = T_odom_imu.translation().x();
+    transform.transform.translation.y = T_odom_imu.translation().y();
+    transform.transform.translation.z = T_odom_imu.translation().z();
+    transform.transform.rotation.x = quat_odom_imu.x();
+    transform.transform.rotation.y = quat_odom_imu.y();
+    transform.transform.rotation.z = quat_odom_imu.z();
+    transform.transform.rotation.w = quat_odom_imu.w();
+    transform_pub.publish(transform);
   }
 }
 
