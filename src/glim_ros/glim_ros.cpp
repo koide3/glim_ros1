@@ -11,6 +11,7 @@
 #include <glim/preprocess/cloud_preprocessor.hpp>
 #include <glim/frontend/async_odometry_estimation.hpp>
 #include <glim/frontend/odometry_estimation_ct.hpp>
+#include <glim/frontend/odometry_estimation_cpu.hpp>
 #include <glim/frontend/odometry_estimation_gpu.hpp>
 #include <glim/backend/async_sub_mapping.hpp>
 #include <glim/backend/sub_mapping.hpp>
@@ -85,6 +86,7 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
   bool enable_imu = true;
   std::shared_ptr<glim::OdometryEstimationBase> odom;
   if (frontend_mode == "CPU") {
+    odom.reset(new glim::OdometryEstimationCPU);
   } else if (frontend_mode == "GPU") {
 #ifdef BUILD_GTSAM_EXT_GPU
     odom.reset(new glim::OdometryEstimationGPU);
@@ -222,7 +224,7 @@ void GlimROS::stop() {
   for (const auto& marginalized_frame : marginalized_frames) {
     sub_mapping->insert_frame(marginalized_frame);
   }
-  
+
   std::cout << "submap" << std::endl;
   sub_mapping->join();
 
@@ -231,7 +233,7 @@ void GlimROS::stop() {
     global_mapping->insert_submap(submap);
   }
   global_mapping->join();
-  
+
 #ifdef BUILD_WITH_VIEWER
   if (standard_viewer) {
     standard_viewer->stop();

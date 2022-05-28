@@ -3,7 +3,7 @@
     "config_path": "/config",
     // Viewer
     "enable_viewer": true,
-    "enable_rviz": true,
+    "enable_rviz": false,
     // IMU config
     "imu_time_offset": 0.0,
     "acc_scale": 1.0,
@@ -20,8 +20,8 @@
   // Following params are used for only glim_rosbag
   // To change topics of glim_rosnode, use the standard ROS remap mechanism
   "glim_rosbag": {
-    "imu_topic": "/imu/data_raw",
-    "points_topic": "/points_raw_ex",
+    "imu_topic": "/imu_raw",
+    "points_topic": "/points_raw",
     "image_topic": ""
   }
 }
