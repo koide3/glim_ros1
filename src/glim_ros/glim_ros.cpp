@@ -139,7 +139,8 @@ void GlimROS::insert_imu(double stamp, const Eigen::Vector3d& linear_acc, const 
 
 void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
   time_keeper->process(raw_points);
-  auto preprocessed = preprocessor->preprocess(raw_points->stamp, raw_points->times, raw_points->points);
+  // auto preprocessed = preprocessor->preprocess(raw_points->stamp, raw_points->times, raw_points->points);
+  auto preprocessed = preprocessor->preprocess(raw_points);
 
   // note: Raw points are used only in extension modules for visualization purposes.
   //       If you need to reduce the memory footprint, you can safely comment out the following line.
