@@ -6,6 +6,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 
+#include <glim/util/config.hpp>
 #include <glim/util/extension_module_ros.hpp>
 
 #include <glim_ros/glim_ros.hpp>
@@ -16,9 +17,14 @@ public:
     ROS_INFO_STREAM("Starting GLIM");
     glim_ros.reset(new glim::GlimROS(nh));
 
-    image_sub = image_transport.subscribe("/image", 1000, &GlimNode::image_callback, this);
-    imu_sub = nh.subscribe("/imu", 10000, &GlimNode::imu_callback, this);
-    points_sub = nh.subscribe("/points", 1000, &GlimNode::points_callback, this);
+    glim::Config config_ros(ros::package::getPath("glim") + "/config/config_ros.json");
+    const std::string imu_topic = config_ros.param<std::string>("glim_ros", "imu_topic", "");
+    const std::string points_topic = config_ros.param<std::string>("glim_ros", "points_topic", "");
+    const std::string image_topic = config_ros.param<std::string>("glim_ros", "image_topic", "");
+
+    image_sub = image_transport.subscribe(image_topic, 100, &GlimNode::image_callback, this);
+    imu_sub = nh.subscribe(imu_topic, 1000, &GlimNode::imu_callback, this);
+    points_sub = nh.subscribe(points_topic, 100, &GlimNode::points_callback, this);
 
     ext_subs = glim_ros->extension_subscriptions();
     for(auto& sub: ext_subs) {

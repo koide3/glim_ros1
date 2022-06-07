@@ -69,12 +69,11 @@ int main(int argc, char** argv) {
   // Initialize GLIM
   glim::GlimROS glim_ros(nh);
 
-  glim::Config config_rosbag(ros::package::getPath("glim_ros") + "/config/glim_ros.json");
-
   // List input topics
-  const std::string imu_topic = config_rosbag.param<std::string>("glim_rosbag", "imu_topic", "");
-  const std::string points_topic = config_rosbag.param<std::string>("glim_rosbag", "points_topic", "");
-  const std::string image_topic = config_rosbag.param<std::string>("glim_rosbag", "image_topic", "");
+  glim::Config config_ros(ros::package::getPath("glim") + "/config/config_ros.json");
+  const std::string imu_topic = config_ros.param<std::string>("glim_ros", "imu_topic", "");
+  const std::string points_topic = config_ros.param<std::string>("glim_ros", "points_topic", "");
+  const std::string image_topic = config_ros.param<std::string>("glim_ros", "image_topic", "");
 
   std::vector<std::string> topics = {imu_topic, points_topic, image_topic};
   topics.erase(std::remove_if(topics.begin(), topics.end(), [](const std::string& topic) { return topic.empty(); }), topics.end());

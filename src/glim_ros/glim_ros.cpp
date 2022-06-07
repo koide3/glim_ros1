@@ -24,7 +24,7 @@
 namespace glim {
 
 GlimROS::GlimROS(ros::NodeHandle& nh) {
-  std::string config_ros_path = ros::package::getPath("glim_ros") + "/config/glim_ros.json";
+  std::string config_ros_path = ros::package::getPath("glim") + "/config/config_ros.json";
   config_ros_path = nh.param<std::string>("config_ros_path", config_ros_path);
   std::cout << "config_ros_path: " << config_ros_path << std::endl;
   glim::Config config_ros(config_ros_path);
