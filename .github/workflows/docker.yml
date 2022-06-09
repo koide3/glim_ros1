@@ -21,10 +21,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: https://github.com/koide3/glim
           token: ${{ secrets.GH_PAT }}
+          path: glim_ros1
           submodules: recursive
 
+      - uses: actions/checkout@v2
+        with:
+          repository: koide3/glim
+          token: ${{ secrets.GH_PAT }}
+          path: glim
+          submodules: recursive
+          
       - name: Docker login
         continue-on-error: true
         uses: docker/login-action@v1
