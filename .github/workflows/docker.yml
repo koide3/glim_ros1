@@ -42,6 +42,6 @@ jobs:
       - name: Docker build
         uses: docker/build-push-action@v2
         with:
-          file: ${{github.workspace}}/docker/${{ matrix.DISTRO }}/Dockerfile
+          file: ${{github.workspace}}/glim_ros1/docker/${{ matrix.DISTRO }}/Dockerfile
           context: .
           push: false
