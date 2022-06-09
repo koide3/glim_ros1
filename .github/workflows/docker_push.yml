@@ -1,4 +1,4 @@
-name: ROS1 docker
+name: ROS1
 
 on:
   push:
