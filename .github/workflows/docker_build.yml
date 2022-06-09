@@ -1,4 +1,4 @@
-name: Docker build
+name: ROS1 docker
 
 on:
   pull_request:
