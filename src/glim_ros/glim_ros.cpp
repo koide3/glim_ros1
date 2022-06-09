@@ -24,15 +24,15 @@
 namespace glim {
 
 GlimROS::GlimROS(ros::NodeHandle& nh) {
-  std::string config_ros_path = ros::package::getPath("glim") + "/config/config_ros.json";
-  config_ros_path = nh.param<std::string>("config_ros_path", config_ros_path);
-  std::cout << "config_ros_path: " << config_ros_path << std::endl;
-  glim::Config config_ros(config_ros_path);
+  std::string config_path = nh.param<std::string>("config_path", "config");
+  if (config_path[0] != '/') {
+    // config_path is relative to the glim directory
+    config_path = ros::package::getPath("glim") + "/" + config_path;
+  }
 
-  std::string config_path = ros::package::getPath("glim") + config_ros.param<std::string>("glim_ros", "config_path", "/config");
-  config_path = nh.param<std::string>("config_path", config_path);
   std::cout << "config_path: " << config_path << std::endl;
   glim::GlobalConfig::instance(config_path);
+  glim::Config config_ros(glim::GlobalConfig::get_config_path("config_ros"));
 
   // Viewer
 #ifdef BUILD_WITH_VIEWER
@@ -180,11 +180,11 @@ void GlimROS::save(const std::string& path) {
 bool GlimROS::ok() {
 #ifdef BUILD_WITH_VIEWER
   if (!standard_viewer) {
-    return true;
+    return ros::ok();
   }
-  return standard_viewer->ok();
+  return standard_viewer->ok() && ros::ok();
 #else
-  return true;
+  return ros::ok();
 #endif
 }
 

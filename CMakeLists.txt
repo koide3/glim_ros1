@@ -75,13 +75,6 @@ target_link_libraries(glim_rosbag
   glim_ros
 )
 
-add_executable(downsampler
-  src/downsampler.cpp
-)
-target_link_libraries(downsampler
-  glim_ros
-)
-
 if(BUILD_WITH_VIEWER)
   add_executable(offline_viewer
     src/offline_viewer.cpp
