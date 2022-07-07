@@ -188,7 +188,7 @@ bool GlimROS::ok() {
 #endif
 }
 
-void GlimROS::wait() {
+void GlimROS::wait(bool auto_quit) {
   std::cout << "odometry" << std::endl;
   odometry_estimation->join();
 
@@ -209,35 +209,14 @@ void GlimROS::wait() {
   global_mapping->join();
 
 #ifdef BUILD_WITH_VIEWER
-  if (standard_viewer) {
-    standard_viewer->wait();
-  }
-#endif
-}
-
-void GlimROS::stop() {
-  std::cout << "odometry" << std::endl;
-  odometry_estimation->join();
-
-  std::vector<glim::EstimationFrame::ConstPtr> estimation_results;
-  std::vector<glim::EstimationFrame::ConstPtr> marginalized_frames;
-  odometry_estimation->get_results(estimation_results, marginalized_frames);
-  for (const auto& marginalized_frame : marginalized_frames) {
-    sub_mapping->insert_frame(marginalized_frame);
-  }
-
-  std::cout << "submap" << std::endl;
-  sub_mapping->join();
-
-  const auto submaps = sub_mapping->get_results();
-  for (const auto& submap : submaps) {
-    global_mapping->insert_submap(submap);
-  }
-  global_mapping->join();
-
-#ifdef BUILD_WITH_VIEWER
-  if (standard_viewer) {
-    standard_viewer->stop();
+  if(!auto_quit) {
+    if (standard_viewer && ros::ok()) {
+      standard_viewer->wait();
+    }
+  } else {
+    if (standard_viewer) {
+      standard_viewer->stop();
+    }
   }
 #endif
 }

@@ -33,8 +33,7 @@ public:
   void insert_frame(const glim::RawPoints::Ptr& raw_points);
 
   bool ok();
-  void wait();
-  void stop();
+  void wait(bool auto_quit);
 
   void save(const std::string& path);
 

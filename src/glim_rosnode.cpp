@@ -17,7 +17,7 @@ public:
     ROS_INFO_STREAM("Starting GLIM");
     glim_ros.reset(new glim::GlimROS(nh));
 
-    glim::Config config_ros(ros::package::getPath("glim") + "/config/config_ros.json");
+    glim::Config config_ros(glim::GlobalConfig::get_config_path("config_ros"));
     const std::string imu_topic = config_ros.param<std::string>("glim_ros", "imu_topic", "");
     const std::string points_topic = config_ros.param<std::string>("glim_ros", "points_topic", "");
     const std::string image_topic = config_ros.param<std::string>("glim_ros", "image_topic", "");
@@ -55,7 +55,7 @@ public:
       ros::spinOnce();
     }
 
-    glim_ros->stop();
+    glim_ros->wait(true);
     glim_ros->save("/tmp/dump");
   }
 

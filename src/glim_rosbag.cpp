@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
   glim::GlimROS glim_ros(nh);
 
   // List input topics
-  glim::Config config_ros(ros::package::getPath("glim") + "/config/config_ros.json");
+  glim::Config config_ros(glim::GlobalConfig::get_config_path("config_ros"));
   const std::string imu_topic = config_ros.param<std::string>("glim_ros", "imu_topic", "");
   const std::string points_topic = config_ros.param<std::string>("glim_ros", "points_topic", "");
   const std::string image_topic = config_ros.param<std::string>("glim_ros", "image_topic", "");
@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  glim_ros.wait();
+  glim_ros.wait(nh.param<bool>("auto_quit", false));
   glim_ros.save("/tmp/dump");
 
   return 0;
