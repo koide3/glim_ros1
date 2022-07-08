@@ -1,0 +1,8 @@
+<launch>
+	<arg name="config_path" default="config"/>
+	<arg name="bag_path"/>
+
+	<node pkg="glim_ros" type="glim_rosbag" name="glim_rosbag" args="$(arg bag_path)" output="screen">
+		<param name="config_path" value="$(arg config_path)" />
+	</node>
+</launch>
