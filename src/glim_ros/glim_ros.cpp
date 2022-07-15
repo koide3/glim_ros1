@@ -118,6 +118,10 @@ GlimROS::~GlimROS() {
   thread.join();
 }
 
+const std::vector<std::shared_ptr<ExtensionModule>>& GlimROS::extensions() {
+  return extension_modules;
+}
+
 const std::vector<std::shared_ptr<GenericTopicSubscription>>& GlimROS::extension_subscriptions() {
   return extension_subs;
 }

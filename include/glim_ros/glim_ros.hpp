@@ -26,6 +26,7 @@ public:
   GlimROS(ros::NodeHandle& nh);
   ~GlimROS();
 
+  const std::vector<std::shared_ptr<ExtensionModule>>& extensions();
   const std::vector<std::shared_ptr<GenericTopicSubscription>>& extension_subscriptions();
 
   void insert_image(const double stamp, const cv::Mat& image);
