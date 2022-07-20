@@ -10,18 +10,18 @@ RUN apt-get update \
   && apt-get upgrade -y \
   # install dependencies
   && apt-get install --no-install-recommends -y \
-    software-properties-common \
-    wget nano build-essential \
-    git cmake curl libeigen3-dev ca-certificates \
-    libtbb-dev libboost-all-dev libgtest-dev libmetis-dev \
-    libomp-dev libglm-dev libglfw3-dev libpng-dev libopencv-dev \
+  software-properties-common \
+  wget nano build-essential \
+  git cmake curl libeigen3-dev ca-certificates \
+  libtbb-dev libboost-all-dev libgtest-dev libmetis-dev \
+  libomp-dev libglm-dev libglfw3-dev libpng-dev libopencv-dev \
   # install ROS
   && sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
   && curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - \
   && apt-get update \
   && apt-get install --no-install-recommends -y \
-    ros-noetic-ros-base ros-noetic-cv-bridge \
-    ros-noetic-image-transport-plugins ros-noetic-tf2-ros \
+  ros-noetic-ros-base ros-noetic-cv-bridge \
+  ros-noetic-image-transport-plugins ros-noetic-tf2-ros \
   # clean
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
@@ -31,9 +31,9 @@ WORKDIR /root
 RUN git clone https://github.com/borglab/gtsam.git
 WORKDIR /root/gtsam/build
 RUN cmake .. -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
-             -DGTSAM_BUILD_TESTS=OFF \
-             -DGTSAM_WITH_TBB=OFF \
-             -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
+  -DGTSAM_BUILD_TESTS=OFF \
+  -DGTSAM_WITH_TBB=OFF \
+  -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
 RUN make -j$(nproc) && make install
 
 # install viewer
@@ -55,7 +55,7 @@ COPY glim /root/catkin_ws/src/glim
 COPY glim_ros1 /root/catkin_ws/src/glim_ros1
 
 WORKDIR /root/catkin_ws
-RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; catkin_make -DCMAKE_BUILD_TYPE=Release -DBUILD_WITH_CUDA=ON -DBUILD_WITH_VIEWER=ON -DBUILD_WITH_MARCH_NATIVE=OFF'
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; catkin_make -DCMAKE_BUILD_TYPE=Release -DBUILD_WITH_CUDA=ON -DBUILD_WITH_CUDA_MULTIARCH=ON -DBUILD_WITH_VIEWER=ON -DBUILD_WITH_MARCH_NATIVE=OFF'
 
 WORKDIR /root/catkin_ws/src/glim
 
