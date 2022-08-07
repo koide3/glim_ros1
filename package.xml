@@ -10,7 +10,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>glim</depend>
-  <depend>glim_ext</depend>
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>
   <depend>tf2_ros</depend>
