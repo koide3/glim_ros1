@@ -43,6 +43,13 @@ jobs:
       - name: Docker build
         uses: docker/build-push-action@v2
         with:
-          file: ${{github.workspace}}/glim_ros1/docker/noetic_gpu/Dockerfile
+          file: ${{github.workspace}}/glim_ros1/docker/noetic_cuda11.2/Dockerfile
+          context: .
+          push: false
+
+      - name: Docker build
+        uses: docker/build-push-action@v2
+        with:
+          file: ${{github.workspace}}/glim_ros1/docker/melodic_cuda10.2/Dockerfile
           context: .
           push: false
