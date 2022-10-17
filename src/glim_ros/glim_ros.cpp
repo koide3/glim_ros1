@@ -143,7 +143,7 @@ void GlimROS::insert_imu(double stamp, const Eigen::Vector3d& linear_acc, const 
 
   odometry_estimation->insert_imu(stamp, acc_scale * linear_acc, angular_vel);
 
-  if(sub_mapping && global_mapping) {
+  if (sub_mapping && global_mapping) {
     sub_mapping->insert_imu(stamp, acc_scale * linear_acc, angular_vel);
     global_mapping->insert_imu(stamp, acc_scale * linear_acc, angular_vel);
   }
@@ -153,6 +153,11 @@ void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
   time_keeper->process(raw_points);
   // auto preprocessed = preprocessor->preprocess(raw_points->stamp, raw_points->times, raw_points->points);
   auto preprocessed = preprocessor->preprocess(raw_points);
+
+  if (!preprocessed || preprocessed->size() < 100) {
+    std::cerr << console::yellow << "warning: skipping frame with too few points" << console::reset << std::endl;
+    return;
+  }
 
   // note: Raw points are used only in extension modules for visualization purposes.
   //       If you need to reduce the memory footprint, you can safely comment out the following line.
@@ -229,7 +234,7 @@ void GlimROS::wait(bool auto_quit) {
   }
 
 #ifdef BUILD_WITH_VIEWER
-  if(!auto_quit) {
+  if (!auto_quit) {
     if (standard_viewer && ros::ok()) {
       standard_viewer->wait();
     }

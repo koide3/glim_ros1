@@ -184,7 +184,7 @@ int main(int argc, char** argv) {
         }
       }
 
-      for(int i=0; i<glim_ros.extensions().size(); i++) {
+      for (int i = 0; i < glim_ros.extensions().size(); i++) {
         if (glim_ros.extensions()[i]->needs_wait()) {
           std::this_thread::sleep_for(std::chrono::milliseconds(500));
           std::cout << glim::console::yellow << "warning: throttling the mapping process for extension module " << i << glim::console::reset << std::endl;
