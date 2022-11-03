@@ -49,11 +49,3 @@ jobs:
           context: .
           tags: koide3/glim_ros:noetic_cuda11.2
           push: false
-
-      - name: Docker build
-        uses: docker/build-push-action@v2
-        with:
-          file: ${{github.workspace}}/glim_ros1/docker/melodic_cuda10.2/Dockerfile
-          context: .
-          tags: koide3/glim_ros:melodic_cuda11.2
-          push: false
