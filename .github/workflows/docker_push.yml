@@ -40,7 +40,7 @@ jobs:
           file: ${{github.workspace}}/glim_ros1/docker/noetic/Dockerfile
           context: .
           tags: koide3/glim_ros:noetic
-          push: false
+          push: true
 
       - name: Docker build
         uses: docker/build-push-action@v2
@@ -48,4 +48,4 @@ jobs:
           file: ${{github.workspace}}/glim_ros1/docker/noetic_cuda11.2/Dockerfile
           context: .
           tags: koide3/glim_ros:noetic_cuda11.2
-          push: false
+          push: true
