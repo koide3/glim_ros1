@@ -66,6 +66,8 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh("~");
   ros::Publisher clock_pub = nh.advertise<rosgraph_msgs::Clock>("/clock", 1);
 
+  ROS_INFO_STREAM("Starting GLIM");
+
   // Initialize GLIM
   glim::GlimROS glim_ros(nh);
 

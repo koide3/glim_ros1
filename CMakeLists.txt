@@ -52,13 +52,19 @@ include_directories(
 
 add_library(glim_ros
   src/glim_ros/glim_ros.cpp
-  src/glim_ros/rviz_viewer.cpp
 )
 target_link_libraries(glim_ros
   ${OpenCV_LIBRARIES}
   ${GTSAM_LIBRARIES}
   ${glim_LIBRARIES}
   ${catkin_LIBRARIES}
+)
+
+add_library(rviz_viewer SHARED
+  src/glim_ros/rviz_viewer.cpp
+)
+target_link_libraries(rviz_viewer
+  glim_ros
 )
 
 add_executable(glim_rosnode

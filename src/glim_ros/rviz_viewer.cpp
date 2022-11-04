@@ -35,13 +35,13 @@ RvizViewer::RvizViewer() : nh(), private_nh("~") {
 
   kill_switch = false;
   thread = std::thread([this] {
-    while(!kill_switch) {
+    while (!kill_switch) {
       const auto expected = std::chrono::milliseconds(10);
       const auto t1 = std::chrono::high_resolution_clock::now();
       spin_once();
       const auto t2 = std::chrono::high_resolution_clock::now();
 
-      if(t2 - t1 < expected) {
+      if (t2 - t1 < expected) {
         std::this_thread::sleep_for(expected - (t2 - t1));
       }
     }
@@ -60,9 +60,9 @@ void RvizViewer::set_callbacks() {
 }
 
 void RvizViewer::frontend_new_frame(const EstimationFrame::ConstPtr& new_frame) {
-  if(points_pub.getNumSubscribers()) {
+  if (points_pub.getNumSubscribers()) {
     std::string frame_id;
-    switch(new_frame->frame_id) {
+    switch (new_frame->frame_id) {
       case FrameID::LIDAR:
         frame_id = lidar_frame_id;
         break;
@@ -138,7 +138,7 @@ void RvizViewer::frontend_new_frame(const EstimationFrame::ConstPtr& new_frame) 
   trans.transform.rotation.w = quat_world_odom.w();
   tf_broadcaster.sendTransform(trans);
 
-  if(odom_pub.getNumSubscribers()) {
+  if (odom_pub.getNumSubscribers()) {
     nav_msgs::Odometry odom;
     odom.header.stamp = ros::Time(new_frame->stamp);
     odom.header.frame_id = odom_frame_id;
@@ -153,7 +153,7 @@ void RvizViewer::frontend_new_frame(const EstimationFrame::ConstPtr& new_frame) 
     odom_pub.publish(odom);
   }
 
-  if(pose_pub.getNumSubscribers()) {
+  if (pose_pub.getNumSubscribers()) {
     geometry_msgs::PoseStamped pose;
     pose.header.stamp = ros::Time(new_frame->stamp);
     pose.header.frame_id = world_frame_id;
@@ -194,19 +194,19 @@ void RvizViewer::globalmap_on_update_submaps(const std::vector<SubMap::Ptr>& sub
   }
 
   std::vector<Eigen::Isometry3d, Eigen::aligned_allocator<Eigen::Isometry3d>> submap_poses(submaps.size());
-  for(int i = 0; i < submaps.size(); i++) {
+  for (int i = 0; i < submaps.size(); i++) {
     submap_poses[i] = submaps[i]->T_world_origin;
   }
 
   invoke([this, latest_submap, submap_poses] {
     this->submaps.push_back(latest_submap->frame);
 
-    if(!map_pub.getNumSubscribers()) {
+    if (!map_pub.getNumSubscribers()) {
       return;
     }
 
     int total_num_points = 0;
-    for(const auto& submap : this->submaps) {
+    for (const auto& submap : this->submaps) {
       total_num_points += submap->size();
     }
 
@@ -216,7 +216,7 @@ void RvizViewer::globalmap_on_update_submaps(const std::vector<SubMap::Ptr>& sub
     merged->points = merged->points_storage.data();
 
     int begin = 0;
-    for(int i = 0; i < this->submaps.size(); i++) {
+    for (int i = 0; i < this->submaps.size(); i++) {
       const auto& submap = this->submaps[i];
       std::transform(submap->points, submap->points + submap->size(), merged->points + begin, [&](const Eigen::Vector4d& p) { return submap_poses[i] * p; });
       begin += submap->size();
@@ -234,10 +234,14 @@ void RvizViewer::invoke(const std::function<void()>& task) {
 
 void RvizViewer::spin_once() {
   std::lock_guard<std::mutex> lock(invoke_queue_mutex);
-  for(const auto& task : invoke_queue) {
+  for (const auto& task : invoke_queue) {
     task();
   }
   invoke_queue.clear();
 }
 
 }  // namespace glim
+
+extern "C" glim::ExtensionModule* create_extension_module() {
+  return new glim::RvizViewer();
+}

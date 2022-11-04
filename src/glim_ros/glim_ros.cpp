@@ -17,9 +17,6 @@
 #include <glim/backend/sub_mapping.hpp>
 #include <glim/backend/async_global_mapping.hpp>
 #include <glim/backend/global_mapping.hpp>
-#include <glim/viewer/standard_viewer.hpp>
-
-#include <glim_ros/rviz_viewer.hpp>
 
 namespace glim {
 
@@ -34,26 +31,21 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
   glim::GlobalConfig::instance(config_path);
   glim::Config config_ros(glim::GlobalConfig::get_config_path("config_ros"));
 
-  // Viewer
-#ifdef BUILD_WITH_VIEWER
-  if (config_ros.param<bool>("glim_ros", "enable_viewer", true)) {
-    extension_modules.emplace_back(std::shared_ptr<glim::StandardViewer>(new glim::StandardViewer));
-  }
-#endif
-
-  if (config_ros.param<bool>("glim_ros", "enable_rviz", true)) {
-    extension_modules.emplace_back(std::shared_ptr<glim::RvizViewer>(new glim::RvizViewer));
-  }
-
   // Extention modules
   const auto extensions = config_ros.param<std::vector<std::string>>("glim_ros", "extension_modules");
   if (extensions && !extensions->empty()) {
-    std::cout << console::bold_red << "Extension modules are enabled!!" << console::reset << std::endl;
-    std::cout << console::bold_red << "You must carefully check and follow the licenses of ext modules" << console::reset << std::endl;
+    for (const auto& extension : *extensions) {
+      if (extension.find("viewer") == std::string::npos) {
+        std::cout << console::bold_red << "Extension modules are enabled!!" << console::reset << std::endl;
+        std::cout << console::bold_red << "You must carefully check and follow the licenses of ext modules" << console::reset << std::endl;
 
-    const std::string config_ext_path = ros::package::getPath("glim_ext") + "/config";
-    std::cout << "config_ext_path: " << config_ext_path << std::endl;
-    glim::GlobalConfig::instance()->override_param<std::string>("global", "config_ext", config_ext_path);
+        const std::string config_ext_path = ros::package::getPath("glim_ext") + "/config";
+        std::cout << "config_ext_path: " << config_ext_path << std::endl;
+        glim::GlobalConfig::instance()->override_param<std::string>("global", "config_ext", config_ext_path);
+
+        break;
+      }
+    }
 
     for (const auto& extension : *extensions) {
       auto ext_module = ExtensionModule::load(extension);
