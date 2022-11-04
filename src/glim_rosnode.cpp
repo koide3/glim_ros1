@@ -27,7 +27,7 @@ public:
     points_sub = nh.subscribe(points_topic, 100, &GlimNode::points_callback, this);
 
     ext_subs = glim_ros->extension_subscriptions();
-    for(auto& sub: ext_subs) {
+    for (auto& sub : ext_subs) {
       sub->create_subscriber(nh);
     }
   }
@@ -51,7 +51,7 @@ public:
   }
 
   void spin() {
-    while(ros::ok() && glim_ros->ok()) {
+    while (ros::ok()) {
       ros::spinOnce();
     }
 

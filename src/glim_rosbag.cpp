@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
 
     // Read messages
     for (rosbag::MessageInstance const m : view) {
-      if (!glim_ros.ok()) {
+      if (!ros::ok()) {
         return false;
       }
       speed_counter.update(m.getTime());

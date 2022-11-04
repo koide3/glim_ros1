@@ -16,7 +16,6 @@ class AsyncGlobalMapping;
 
 class ExtensionModule;
 class GenericTopicSubscription;
-class StandardViewer;
 
 /**
  * @brief glim instance for ROS environments
@@ -33,7 +32,6 @@ public:
   void insert_imu(double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel);
   void insert_frame(const glim::RawPoints::Ptr& raw_points);
 
-  bool ok();
   void wait(bool auto_quit);
 
   void save(const std::string& path);
@@ -56,10 +54,6 @@ private:
 
   std::vector<std::shared_ptr<ExtensionModule>> extension_modules;
   std::vector<std::shared_ptr<GenericTopicSubscription>> extension_subs;
-
-#ifdef BUILD_WITH_VIEWER
-  std::unique_ptr<glim::StandardViewer> standard_viewer;
-#endif
 };
 
 }  // namespace glim

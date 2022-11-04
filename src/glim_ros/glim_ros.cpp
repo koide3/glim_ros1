@@ -37,12 +37,12 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
   // Viewer
 #ifdef BUILD_WITH_VIEWER
   if (config_ros.param<bool>("glim_ros", "enable_viewer", true)) {
-    standard_viewer.reset(new glim::StandardViewer);
+    extension_modules.emplace_back(std::shared_ptr<glim::StandardViewer>(new glim::StandardViewer));
   }
 #endif
 
   if (config_ros.param<bool>("glim_ros", "enable_rviz", true)) {
-    extension_modules.push_back(std::shared_ptr<glim::RvizViewer>(new glim::RvizViewer));
+    extension_modules.emplace_back(std::shared_ptr<glim::RvizViewer>(new glim::RvizViewer));
   }
 
   // Extention modules
@@ -176,6 +176,12 @@ void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
 
 void GlimROS::loop() {
   while (!kill_switch) {
+    for (const auto& ext_module : extension_modules) {
+      if (!ext_module->ok()) {
+        ros::shutdown();
+      }
+    }
+
     std::vector<glim::EstimationFrame::ConstPtr> estimation_results;
     std::vector<glim::EstimationFrame::ConstPtr> marginalized_frames;
     odometry_estimation->get_results(estimation_results, marginalized_frames);
@@ -205,17 +211,6 @@ void GlimROS::save(const std::string& path) {
   }
 }
 
-bool GlimROS::ok() {
-#ifdef BUILD_WITH_VIEWER
-  if (!standard_viewer) {
-    return ros::ok();
-  }
-  return standard_viewer->ok() && ros::ok();
-#else
-  return ros::ok();
-#endif
-}
-
 void GlimROS::wait(bool auto_quit) {
   std::cout << "odometry" << std::endl;
   odometry_estimation->join();
@@ -240,17 +235,14 @@ void GlimROS::wait(bool auto_quit) {
     }
   }
 
-#ifdef BUILD_WITH_VIEWER
   if (!auto_quit) {
-    if (standard_viewer && ros::ok()) {
-      standard_viewer->wait();
-    }
-  } else {
-    if (standard_viewer) {
-      standard_viewer->stop();
+    bool terminate = false;
+    while (ros::ok() && !terminate) {
+      for (const auto& ext_module : extension_modules) {
+        terminate |= (!ext_module->ok());
+      }
     }
   }
-#endif
 }
 
 }  // namespace glim
