@@ -43,6 +43,7 @@ jobs:
       - name: Docker build
         uses: docker/build-push-action@v2
         with:
-          file: ${{github.workspace}}/glim_ros1/docker/noetic_cuda11.2/Dockerfile
+          file: ${{github.workspace}}/glim_ros1/docker/noetic/Dockerfile
+          build-args: CMAKE_ARGS="-DBUILD_WITH_CUDA=ON -DBUILD_WITH_CUDA_MULTIARCH=ON"
           context: .
           push: false

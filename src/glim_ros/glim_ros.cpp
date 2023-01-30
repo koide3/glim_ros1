@@ -1,8 +1,13 @@
 #include <glim_ros/glim_ros.hpp>
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+
 #include <ros/package.h>
 
 #include <glim/util/config.hpp>
+#include <glim/util/logging.hpp>
 #include <glim/util/console_colors.hpp>
 #include <glim/util/time_keeper.hpp>
 #include <glim/util/extension_module.hpp>
@@ -21,13 +26,33 @@
 namespace glim {
 
 GlimROS::GlimROS(ros::NodeHandle& nh) {
+  // Setup logger
+  auto logger = spdlog::default_logger();
+  auto ringbuffer_sink = get_ringbuffer_sink();
+  logger->sinks().push_back(ringbuffer_sink);
+  glim::set_default_logger(logger);
+
+  if (nh.param<bool>("debug", false)) {
+    spdlog::info("enable debug printing");
+    logger->set_level(spdlog::level::trace);
+
+    if (!logger->sinks().empty()) {
+      auto console_sink = logger->sinks()[0];
+      console_sink->set_level(spdlog::level::debug);
+    }
+
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("/tmp/glim_log.log", true);
+    file_sink->set_level(spdlog::level::trace);
+    logger->sinks().push_back(file_sink);
+  }
+
   std::string config_path = nh.param<std::string>("config_path", "config");
   if (config_path[0] != '/') {
     // config_path is relative to the glim directory
     config_path = ros::package::getPath("glim") + "/" + config_path;
   }
 
-  std::cout << "config_path: " << config_path << std::endl;
+  spdlog::info("config_path: {}", config_path);
   glim::GlobalConfig::instance(config_path);
   glim::Config config_ros(glim::GlobalConfig::get_config_path("config_ros"));
 
@@ -36,11 +61,11 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
   if (extensions && !extensions->empty()) {
     for (const auto& extension : *extensions) {
       if (extension.find("viewer") == std::string::npos) {
-        std::cout << console::bold_red << "Extension modules are enabled!!" << console::reset << std::endl;
-        std::cout << console::bold_red << "You must carefully check and follow the licenses of ext modules" << console::reset << std::endl;
+        spdlog::warn("Extension modules are enabled!!");
+        spdlog::warn("You must carefully check and follow the licenses of ext modules");
 
         const std::string config_ext_path = ros::package::getPath("glim_ext") + "/config";
-        std::cout << "config_ext_path: " << config_ext_path << std::endl;
+          spdlog::info("config_ext_path: {}", config_ext_path);
         glim::GlobalConfig::instance()->override_param<std::string>("global", "config_ext", config_ext_path);
 
         break;
@@ -48,9 +73,10 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
     }
 
     for (const auto& extension : *extensions) {
+      spdlog::info("load {}", extension);
       auto ext_module = ExtensionModule::load(extension);
       if (ext_module == nullptr) {
-        std::cerr << console::bold_red << "error: failed to load " << extension << console::reset << std::endl;
+        spdlog::error("failed to load {}", extension);
         continue;
       } else {
         extension_modules.push_back(ext_module);
@@ -78,16 +104,22 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
   bool enable_imu = true;
   std::shared_ptr<glim::OdometryEstimationBase> odom;
   if (frontend_mode == "CPU") {
+    spdlog::info("use CPU-based Range-IMU odometry estimation");
     odom.reset(new glim::OdometryEstimationCPU);
   } else if (frontend_mode == "GPU") {
+    spdlog::info("use GPU-based Range-IMU odometry estimation");
 #ifdef BUILD_GTSAM_EXT_GPU
     odom.reset(new glim::OdometryEstimationGPU);
 #else
-    std::cerr << console::bold_red << "error: GPU frontend is selected although glim is built without GPU support!!" << console::reset << std::endl;
+    spdlog::error("GPU frontend is selected although glim was built without GPU support!!");
 #endif
   } else if (frontend_mode == "CT") {
+    spdlog::info("use CPU-based CT-ICP odometry estimation");
     enable_imu = false;
     odom.reset(new glim::OdometryEstimationCT);
+  } else {
+    spdlog::critical("unknown odometry estimation mode: {}", frontend_mode);
+    abort();
   }
 
   odometry_estimation.reset(new glim::AsyncOdometryEstimation(odom, enable_imu));
@@ -122,6 +154,8 @@ const std::vector<std::shared_ptr<GenericTopicSubscription>>& GlimROS::extension
 }
 
 void GlimROS::insert_image(const double stamp, const cv::Mat& image) {
+  spdlog::trace("image: {:.6f}", stamp);
+
   odometry_estimation->insert_image(stamp, image);
 
   if (sub_mapping) {
@@ -133,6 +167,8 @@ void GlimROS::insert_image(const double stamp, const cv::Mat& image) {
 }
 
 void GlimROS::insert_imu(double stamp, const Eigen::Vector3d& linear_acc, const Eigen::Vector3d& angular_vel) {
+  spdlog::trace("IMU: {:.6f}", stamp);
+
   stamp += imu_time_offset;
   time_keeper->validate_imu_stamp(stamp);
 
@@ -147,12 +183,14 @@ void GlimROS::insert_imu(double stamp, const Eigen::Vector3d& linear_acc, const 
 }
 
 void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
+  spdlog::trace("points: {:.6f}", raw_points->stamp);
+
   time_keeper->process(raw_points);
   // auto preprocessed = preprocessor->preprocess(raw_points->stamp, raw_points->times, raw_points->points);
   auto preprocessed = preprocessor->preprocess(raw_points);
 
   if (!preprocessed || preprocessed->size() < 100) {
-    std::cerr << console::yellow << "warning: skipping frame with too few points" << console::reset << std::endl;
+    spdlog::warn("skipping frame with too few points");
     return;
   }
 
@@ -204,7 +242,7 @@ void GlimROS::save(const std::string& path) {
 }
 
 void GlimROS::wait(bool auto_quit) {
-  std::cout << "odometry" << std::endl;
+  spdlog::info("waiting for odometry estimation");
   odometry_estimation->join();
 
   if (sub_mapping) {
@@ -215,7 +253,7 @@ void GlimROS::wait(bool auto_quit) {
       sub_mapping->insert_frame(marginalized_frame);
     }
 
-    std::cout << "submap" << std::endl;
+    spdlog::info("waiting for local mapping");
     sub_mapping->join();
     const auto submaps = sub_mapping->get_results();
 
@@ -223,6 +261,8 @@ void GlimROS::wait(bool auto_quit) {
       for (const auto& submap : submaps) {
         global_mapping->insert_submap(submap);
       }
+
+      spdlog::info("waiting for global mapping");
       global_mapping->join();
     }
   }

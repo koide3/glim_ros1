@@ -2,6 +2,7 @@
 #include <thread>
 #include <memory>
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 #include <ros/ros.h>
 #include <rosbag/bag.h>
@@ -86,9 +87,9 @@ int main(int argc, char** argv) {
     subscription_map[sub->topic].push_back(sub);
   }
 
-  std::cout << "topics:" << std::endl;
+  spdlog::info("topics:");
   for (const auto& topic : topics) {
-    std::cout << "- " << topic << std::endl;
+    spdlog::info("- {}", topic);
   }
 
   // List input rosbag filenames
@@ -107,18 +108,18 @@ int main(int argc, char** argv) {
   }
   std::sort(bag_filenames.begin(), bag_filenames.end());
 
-  std::cout << "bag_filenames:" << std::endl;
+  spdlog::info("bag_filenames:");
   for (const auto& bag_filename : bag_filenames) {
-    std::cout << "- " << bag_filename << std::endl;
+    spdlog::info("- {}", bag_filename);
   }
 
   // Bag read function
   const auto read_bag = [&](const std::string& bag_filename, const std::vector<std::string>& topics) {
-    std::cout << "opening " << bag_filename << std::endl;
+    spdlog::info("opening {}", bag_filename);
     glim::notify(glim::NotificationLevel::INFO, "opening " + bag_filename);
     rosbag::Bag bag(bag_filename, rosbag::bagmode::Read);
     if (!bag.isOpen()) {
-      std::cerr << glim::console::bold_red << "error: failed to open " << bag_filename << glim::console::reset << std::endl;
+      spdlog::error("failed to open {}", bag_filename);
       return false;
     }
 
@@ -145,7 +146,7 @@ int main(int argc, char** argv) {
 
           glim_ros.insert_imu(stamp, Eigen::Vector3d(linear_acc.x, linear_acc.y, linear_acc.z), Eigen::Vector3d(angular_vel.x, angular_vel.y, angular_vel.z));
         } else {
-          std::cerr << glim::console::yellow << "warning: failed to instantiate IMU message" << glim::console::reset << std::endl;
+          spdlog::error("failed to instantiate IMU message");
         }
       }
       // PointCloud2 message
@@ -155,7 +156,7 @@ int main(int argc, char** argv) {
           auto raw_points = glim::extract_raw_points(points_msg);
           glim_ros.insert_frame(raw_points);
         } else {
-          std::cerr << glim::console::yellow << "warning: failed to instantiate PointCloud2 message" << glim::console::reset << std::endl;
+          spdlog::error("failed to instantiate PointCloud2 message");
         }
       }
       // Image message
@@ -174,7 +175,7 @@ int main(int argc, char** argv) {
         }
 
         if (!compressed_img_msg && !img_msg) {
-          std::cerr << glim::console::yellow << "warning: failed to instantiate Image message" << glim::console::reset << std::endl;
+          spdlog::error("failed to instantiate Image message");
         }
       }
 
@@ -189,7 +190,7 @@ int main(int argc, char** argv) {
       for (int i = 0; i < glim_ros.extensions().size(); i++) {
         if (glim_ros.extensions()[i]->needs_wait()) {
           std::this_thread::sleep_for(std::chrono::milliseconds(500));
-          std::cout << glim::console::yellow << "warning: throttling the mapping process for extension module " << i << glim::console::reset << std::endl;
+          spdlog::warn("throttling the mapping process for extension module {}", i);
           i = -1;
         }
       }

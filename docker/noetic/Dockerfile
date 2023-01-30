@@ -1,19 +1,22 @@
 FROM koide3/gtsam_docker:focal_cuda11.2
 
-RUN apt-get update \
-  && apt-get upgrade -y \
+ARG CMAKE_ARGS=""
+
+RUN apt-fast update \
+  && apt-fast upgrade -y \
   # install dependencies
-  && apt-get install --no-install-recommends -y \
-    curl libopencv-dev \
+  && apt-fast install --no-install-recommends -y \
+    curl gnupg lsb-release ca-certificates libopencv-dev \
   # install ROS
   && sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
   && curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - \
-  && apt-get update \
-  && apt-get install --no-install-recommends -y \
+  && apt-fast update \
+  && apt-fast install --no-install-recommends -y \
+    libfmt-dev libspdlog-dev \
     ros-noetic-ros-base ros-noetic-cv-bridge \
     ros-noetic-image-transport-plugins ros-noetic-tf2-ros \
   # clean
-  && apt-get clean \
+  && apt-fast clean \
   && rm -rf /var/lib/apt/lists/*
 
 RUN echo "#!/bin/bash" >> /ros_entrypoint.sh \
@@ -28,7 +31,7 @@ COPY glim /root/catkin_ws/src/glim
 COPY glim_ros1 /root/catkin_ws/src/glim_ros1
 
 WORKDIR /root/catkin_ws
-RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; catkin_make -DCMAKE_BUILD_TYPE=Release -DBUILD_WITH_CUDA=OFF -DBUILD_WITH_VIEWER=ON'
+RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; catkin_make -DCMAKE_BUILD_TYPE=Release -DBUILD_WITH_CUDA=OFF -DBUILD_WITH_VIEWER=ON ${CMAKE_ARGS}'
 
 WORKDIR /root/catkin_ws/src/glim
 
