@@ -56,6 +56,46 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
   glim::GlobalConfig::instance(config_path);
   glim::Config config_ros(glim::GlobalConfig::get_config_path("config_ros"));
 
+  // Preprocessing
+  imu_time_offset = config_ros.param<double>("glim_ros", "imu_time_offset", 0.0);
+  acc_scale = config_ros.param<double>("glim_ros", "acc_scale", 1.0);
+
+  time_keeper.reset(new glim::TimeKeeper);
+  preprocessor.reset(new glim::CloudPreprocessor);
+
+  // Odometry estimation
+  glim::Config config_odometry(glim::GlobalConfig::get_config_path("config_frontend"));
+  const std::string odometry_estimation_so_name = config_odometry.param<std::string>("odometry_estimation", "so_name", "libodometry_estimation_cpu.so");
+  spdlog::info("load {}", odometry_estimation_so_name);
+
+  std::shared_ptr<glim::OdometryEstimationBase> odom = OdometryEstimationBase::load_module(odometry_estimation_so_name);
+  if (!odom) {
+    spdlog::critical("failed to load odometry estimation module");
+    abort();
+  }
+  odometry_estimation.reset(new glim::AsyncOdometryEstimation(odom, odom->requires_imu()));
+
+  // Sub mapping
+  const std::string sub_mapping_so_name = glim::Config(glim::GlobalConfig::get_config_path("config_sub_mapping")).param<std::string>("sub_mapping", "so_name", "libsub_mapping.so");
+  if (!sub_mapping_so_name.empty()) {
+    spdlog::info("load {}", sub_mapping_so_name);
+    auto sub = SubMappingBase::load_module(sub_mapping_so_name);
+    if (sub) {
+      sub_mapping.reset(new AsyncSubMapping(sub));
+    }
+  }
+
+  // Global mapping
+  const std::string global_mapping_so_name =
+    glim::Config(glim::GlobalConfig::get_config_path("config_global_mapping")).param<std::string>("global_mapping", "so_name", "libglobal_mapping.so");
+  if (!global_mapping_so_name.empty()) {
+    spdlog::info("load {}", global_mapping_so_name);
+    auto global = GlobalMappingBase::load_module(global_mapping_so_name);
+    if (global) {
+      global_mapping.reset(new AsyncGlobalMapping(global));
+    }
+  }
+
   // Extention modules
   const auto extensions = config_ros.param<std::vector<std::string>>("glim_ros", "extension_modules");
   if (extensions && !extensions->empty()) {
@@ -74,7 +114,7 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
 
     for (const auto& extension : *extensions) {
       spdlog::info("load {}", extension);
-      auto ext_module = ExtensionModule::load(extension);
+      auto ext_module = ExtensionModule::load_module(extension);
       if (ext_module == nullptr) {
         spdlog::error("failed to load {}", extension);
         continue;
@@ -90,54 +130,11 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
     }
   }
 
-  // Preprocessing
-  imu_time_offset = config_ros.param<double>("glim_ros", "imu_time_offset", 0.0);
-  acc_scale = config_ros.param<double>("glim_ros", "acc_scale", 1.0);
-
-  time_keeper.reset(new glim::TimeKeeper);
-  preprocessor.reset(new glim::CloudPreprocessor);
-
-  // Odometry estimation
-  glim::Config config_frontend(glim::GlobalConfig::get_config_path("config_frontend"));
-  const std::string frontend_mode = config_frontend.param<std::string>("odometry_estimation", "frontend_mode", "CPU");
-
-  bool enable_imu = true;
-  std::shared_ptr<glim::OdometryEstimationBase> odom;
-  if (frontend_mode == "CPU") {
-    spdlog::info("use CPU-based Range-IMU odometry estimation");
-    odom.reset(new glim::OdometryEstimationCPU);
-  } else if (frontend_mode == "GPU") {
-    spdlog::info("use GPU-based Range-IMU odometry estimation");
-#ifdef BUILD_GTSAM_EXT_GPU
-    odom.reset(new glim::OdometryEstimationGPU);
-#else
-    spdlog::error("GPU frontend is selected although glim was built without GPU support!!");
-#endif
-  } else if (frontend_mode == "CT") {
-    spdlog::info("use CPU-based CT-ICP odometry estimation");
-    enable_imu = false;
-    odom.reset(new glim::OdometryEstimationCT);
-  } else {
-    spdlog::critical("unknown odometry estimation mode: {}", frontend_mode);
-    abort();
-  }
-
-  odometry_estimation.reset(new glim::AsyncOdometryEstimation(odom, enable_imu));
-
-  // Backend modules
-  if (config_ros.param<bool>("glim_ros", "enable_local_mapping", true)) {
-    std::shared_ptr<glim::SubMappingBase> sub(new glim::SubMapping);
-    sub_mapping.reset(new glim::AsyncSubMapping(sub));
-
-    if (config_ros.param<bool>("glim_ros", "enable_global_mapping", true)) {
-      std::shared_ptr<glim::GlobalMappingBase> global(new glim::GlobalMapping);
-      global_mapping.reset(new glim::AsyncGlobalMapping(global));
-    }
-  }
-
   // Start process loop
   kill_switch = false;
   thread = std::thread([this] { loop(); });
+
+  spdlog::debug("initialized");
 }
 
 GlimROS::~GlimROS() {
