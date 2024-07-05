@@ -18,6 +18,7 @@ find_package(glim REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED core)
 find_package(GTSAM REQUIRED)
+find_package(spdlog REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -54,6 +55,7 @@ add_library(glim_ros
   src/glim_ros/glim_ros.cpp
 )
 target_link_libraries(glim_ros
+  spdlog::spdlog
   ${OpenCV_LIBRARIES}
   ${GTSAM_LIBRARIES}
   ${glim_LIBRARIES}

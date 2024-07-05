@@ -9,7 +9,7 @@
 
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam_ext/factors/linear_damping_factor.hpp>
+#include <gtsam_points/factors/linear_damping_factor.hpp>
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "offline_viewer");
