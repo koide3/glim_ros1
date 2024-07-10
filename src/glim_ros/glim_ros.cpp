@@ -8,20 +8,19 @@
 
 #include <glim/util/config.hpp>
 #include <glim/util/logging.hpp>
-#include <glim/util/console_colors.hpp>
 #include <glim/util/time_keeper.hpp>
 #include <glim/util/extension_module.hpp>
 #include <glim/util/extension_module_ros.hpp>
 #include <glim/util/ros_cloud_converter.hpp>
 #include <glim/preprocess/cloud_preprocessor.hpp>
-#include <glim/frontend/async_odometry_estimation.hpp>
-#include <glim/frontend/odometry_estimation_ct.hpp>
-#include <glim/frontend/odometry_estimation_cpu.hpp>
-#include <glim/frontend/odometry_estimation_gpu.hpp>
-#include <glim/backend/async_sub_mapping.hpp>
-#include <glim/backend/sub_mapping.hpp>
-#include <glim/backend/async_global_mapping.hpp>
-#include <glim/backend/global_mapping.hpp>
+#include <glim/odometry/async_odometry_estimation.hpp>
+#include <glim/odometry/odometry_estimation_ct.hpp>
+#include <glim/odometry/odometry_estimation_cpu.hpp>
+#include <glim/odometry/odometry_estimation_gpu.hpp>
+#include <glim/mapping/async_sub_mapping.hpp>
+#include <glim/mapping/sub_mapping.hpp>
+#include <glim/mapping/async_global_mapping.hpp>
+#include <glim/mapping/global_mapping.hpp>
 
 namespace glim {
 
@@ -64,7 +63,7 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
   preprocessor.reset(new glim::CloudPreprocessor);
 
   // Odometry estimation
-  glim::Config config_odometry(glim::GlobalConfig::get_config_path("config_frontend"));
+  glim::Config config_odometry(glim::GlobalConfig::get_config_path("config_odometry"));
   const std::string odometry_estimation_so_name = config_odometry.param<std::string>("odometry_estimation", "so_name", "libodometry_estimation_cpu.so");
   spdlog::info("load {}", odometry_estimation_so_name);
 
@@ -195,7 +194,7 @@ void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
   //       If you need to reduce the memory footprint, you can safely comment out the following line.
   preprocessed->raw_points = raw_points;
 
-  while (odometry_estimation->input_queue_size() > 10) {
+  while (odometry_estimation->workload() > 10) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
   odometry_estimation->insert_frame(preprocessed);

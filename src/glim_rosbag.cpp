@@ -17,9 +17,7 @@
 #include <rosgraph_msgs/Clock.h>
 
 #include <glim/util/config.hpp>
-#include <glim/util/console_colors.hpp>
 #include <glim/util/extension_module_ros.hpp>
-#include <glim/common/callbacks.hpp>
 
 #include <glim_ros/glim_ros.hpp>
 
@@ -42,7 +40,7 @@ public:
       const double duration = (end_time - begin_time).toSec();
       const double percentage = 100.0 * current / duration;
 
-      glim::notify(glim::NotificationLevel::INFO, (boost::format("playback speed:%.3fx %.2fs/%.2fs (%.2f%%)") % playback_speed % current % duration % percentage).str());
+      spdlog::info((boost::format("playback speed:%.3fx %.2fs/%.2fs (%.2f%%)") % playback_speed % current % duration % percentage).str());
     }
 
     last_sim_time = stamp;
@@ -116,7 +114,6 @@ int main(int argc, char** argv) {
   // Bag read function
   const auto read_bag = [&](const std::string& bag_filename, const std::vector<std::string>& topics) {
     spdlog::info("opening {}", bag_filename);
-    glim::notify(glim::NotificationLevel::INFO, "opening " + bag_filename);
     rosbag::Bag bag(bag_filename, rosbag::bagmode::Read);
     if (!bag.isOpen()) {
       spdlog::error("failed to open {}", bag_filename);

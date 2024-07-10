@@ -8,9 +8,9 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <tf2_ros/transform_broadcaster.h>
 
-#include <gtsam_ext/types/frame_cpu.hpp>
-#include <glim/frontend/callbacks.hpp>
-#include <glim/backend/callbacks.hpp>
+#include <gtsam_points/types/point_cloud_cpu.hpp>
+#include <glim/odometry/callbacks.hpp>
+#include <glim/mapping/callbacks.hpp>
 #include <glim/util/trajectory_manager.hpp>
 #include <glim/util/ros_cloud_converter.hpp>
 
@@ -55,11 +55,11 @@ RvizViewer::~RvizViewer() {
 
 void RvizViewer::set_callbacks() {
   using std::placeholders::_1;
-  OdometryEstimationCallbacks::on_new_frame.add(std::bind(&RvizViewer::frontend_new_frame, this, _1));
+  OdometryEstimationCallbacks::on_new_frame.add(std::bind(&RvizViewer::odometry_new_frame, this, _1));
   GlobalMappingCallbacks::on_update_submaps.add(std::bind(&RvizViewer::globalmap_on_update_submaps, this, _1));
 }
 
-void RvizViewer::frontend_new_frame(const EstimationFrame::ConstPtr& new_frame) {
+void RvizViewer::odometry_new_frame(const EstimationFrame::ConstPtr& new_frame) {
   if (points_pub.getNumSubscribers()) {
     std::string frame_id;
     switch (new_frame->frame_id) {
@@ -210,7 +210,7 @@ void RvizViewer::globalmap_on_update_submaps(const std::vector<SubMap::Ptr>& sub
       total_num_points += submap->size();
     }
 
-    gtsam_ext::FrameCPU::Ptr merged(new gtsam_ext::FrameCPU);
+    gtsam_points::PointCloudCPU::Ptr merged(new gtsam_points::PointCloudCPU);
     merged->num_points = total_num_points;
     merged->points_storage.resize(total_num_points);
     merged->points = merged->points_storage.data();

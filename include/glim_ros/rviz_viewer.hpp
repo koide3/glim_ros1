@@ -7,8 +7,8 @@
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 
-#include <glim/frontend/estimation_frame.hpp>
-#include <glim/backend/sub_map.hpp>
+#include <glim/odometry/estimation_frame.hpp>
+#include <glim/mapping/sub_map.hpp>
 #include <glim/util/extension_module.hpp>
 
 namespace glim {
@@ -22,7 +22,7 @@ public:
 
 private:
   void set_callbacks();
-  void frontend_new_frame(const EstimationFrame::ConstPtr& new_frame);
+  void odometry_new_frame(const EstimationFrame::ConstPtr& new_frame);
   void globalmap_on_update_submaps(const std::vector<SubMap::Ptr>& submaps);
   void invoke(const std::function<void()>& task);
 
@@ -52,7 +52,7 @@ private:
   std::mutex trajectory_mutex;
   std::unique_ptr<TrajectoryManager> trajectory;
 
-  std::vector<gtsam_ext::Frame::ConstPtr> submaps;
+  std::vector<gtsam_points::PointCloud::ConstPtr> submaps;
 
   std::mutex invoke_queue_mutex;
   std::vector<std::function<void()>> invoke_queue;
