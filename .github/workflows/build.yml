@@ -1,9 +1,14 @@
-name: ROS1 docker
+name: ROS1
 
 on:
   pull_request:
     branches: [ master ]
     paths-ignore: '**.md'
+  push:
+    branches: [ master ]
+    paths-ignore: '**.md'
+  repository_dispatch:
+    types: [trigger-event]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -11,18 +16,24 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        DISTRO: [
+          { "suffix": "gcc", "label": "noetic" },
+          { "suffix": "gcc.cuda", "label": "noetic_cuda12.2" },
+        ]
 
     steps:
       - uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.PAT }}
           path: glim_ros1
           submodules: recursive
 
       - uses: actions/checkout@v2
         with:
           repository: koide3/glim
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.PAT }}
           path: glim
           submodules: recursive
           
@@ -36,14 +47,7 @@ jobs:
       - name: Docker build
         uses: docker/build-push-action@v2
         with:
-          file: ${{github.workspace}}/glim_ros1/docker/noetic/Dockerfile
+          tags: koide3/glim_ros1:${{ matrix.DISTRO.label }}
+          file: ${{github.workspace}}/glim_ros1/docker/Dockerfile.${{ matrix.DISTRO.suffix }}
           context: .
-          push: false
-
-      - name: Docker build
-        uses: docker/build-push-action@v2
-        with:
-          file: ${{github.workspace}}/glim_ros1/docker/noetic/Dockerfile
-          build-args: CMAKE_ARGS="-DBUILD_WITH_CUDA=ON -DBUILD_WITH_CUDA_MULTIARCH=ON"
-          context: .
-          push: false
+          push: ${{ github.event_name == 'push' && contains(matrix.DISTRO.suffix, 'gcc') }}
