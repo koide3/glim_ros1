@@ -6,6 +6,9 @@
 
 #include <ros/package.h>
 
+#include <gtsam_points/optimizers/linearization_hook.hpp>
+#include <gtsam_points/cuda/nonlinear_factor_set_gpu_create.hpp>
+
 #include <glim/util/config.hpp>
 #include <glim/util/logging.hpp>
 #include <glim/util/time_keeper.hpp>
@@ -44,6 +47,11 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
     file_sink->set_level(spdlog::level::trace);
     logger->sinks().push_back(file_sink);
   }
+
+  spdlog::info("register linearization hooks");
+#ifdef BUILD_GTSAM_POINTS_GPU
+  gtsam_points::LinearizationHook::register_hook([]() { return gtsam_points::create_nonlinear_factor_set_gpu(); });
+#endif
 
   std::string config_path = nh.param<std::string>("config_path", "config");
   if (config_path[0] != '/') {

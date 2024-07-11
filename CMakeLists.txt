@@ -39,7 +39,7 @@ if(BUILD_WITH_VIEWER)
 endif()
 
 if(BUILD_WITH_CUDA)
-  add_definitions(-DBUILD_GTSAM_EXT_GPU)
+  add_definitions(-DBUILD_GTSAM_POINTS_GPU)
 endif()
 
 include_directories(
