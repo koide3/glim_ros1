@@ -1,0 +1,85 @@
+ARG BASE_IMAGE=nvidia/cuda:12.5.1-devel-ubuntu20.04
+FROM $BASE_IMAGE
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update
+RUN apt-get upgrade -y
+RUN apt-get install --no-install-recommends -y \
+    gpg curl libfmt-dev libspdlog-dev libopencv-dev \
+    libboost-all-dev libglfw3-dev libmetis-dev \
+    libeigen3-dev libpthread-stubs0-dev \
+    libomp-dev wget git
+
+ARG ROS_DISTRO=noetic
+
+# install ROS
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-latest.list'
+RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+RUN apt-get update
+RUN apt-get install --no-install-recommends -y \
+    libfmt-dev libspdlog-dev \
+    ros-${ROS_DISTRO}-ros-base ros-${ROS_DISTRO}-cv-bridge \
+    ros-${ROS_DISTRO}-image-transport-plugins ros-${ROS_DISTRO}-tf2-ros \
+    python3-bloom python3-rosdep fakeroot debhelper dh-python
+
+RUN test -f /usr/share/doc/kitware-archive-keyring/copyright || wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null 
+RUN echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ focal main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null
+RUN echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ focal-rc main' | tee -a /etc/apt/sources.list.d/kitware.list >/dev/null
+
+# Upgrade cmake and eigen
+RUN apt-get update && apt-get upgrade -y
+    
+# Install Eigen that is newer but compatible with 3.3.7 used by GTSAM.
+RUN git clone https://gitlab.com/libeigen/eigen.git /root/eigen
+WORKDIR /root/eigen
+RUN git checkout 1fd5ce1
+WORKDIR /root/eigen/build
+RUN cmake .. && make install
+
+COPY local_ppa /ppa
+
+RUN /ppa/setup_ppa.sh
+RUN sed -i 's#https://koide3.github.io/ppa#file:///ppa#g' /etc/apt/sources.list.d/koide3_ppa.list
+RUN apt-get update
+
+ARG PACKAGE_SUFFIX=-cuda12.5
+
+RUN apt-get install --no-install-recommends -y \
+    libiridescence-dev libgtsam-points${PACKAGE_SUFFIX}-dev
+
+RUN rosdep init && rosdep update
+
+RUN apt-get install -y libeigen3-dev libpthread-stubs0-dev
+
+COPY glim /root/glim
+
+WORKDIR /root/glim
+RUN bloom-generate rosdebian
+RUN sed -i 's/dh $@/dh $@ --parallel/g' ./debian/rules
+RUN sed -i 's/dh_shlibdeps/dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info/g' ./debian/rules
+RUN sed -i "s/Depends: /Depends: libiridescence-dev, libgtsam-points${PACKAGE_SUFFIX}-dev, /g" ./debian/control
+RUN sed -i "s/ros-${ROS_DISTRO}-glim/ros-${ROS_DISTRO}-glim${PACKAGE_SUFFIX}/g" ./debian/control
+RUN sed -i "s/ros-${ROS_DISTRO}-glim/ros-${ROS_DISTRO}-glim${PACKAGE_SUFFIX}/g" ./debian/changelog
+RUN sed -i "s/ros-${ROS_DISTRO}-glim/ros-${ROS_DISTRO}-glim${PACKAGE_SUFFIX}/g" ./debian/rules
+RUN DEB_BUILD_OPTIONS="parallel=$(nproc)" fakeroot debian/rules binary
+
+RUN apt-get install -y /root/ros-${ROS_DISTRO}-glim*.deb
+
+RUN echo "glim:" >> /root/rosdep.yaml
+RUN echo "  ubuntu: [ros-${ROS_DISTRO}-glim${PACKAGE_SUFFIX}]" >> /root/rosdep.yaml
+RUN echo "yaml file:///root/rosdep.yaml" > /etc/ros/rosdep/sources.list.d/99-glim.list
+RUN apt-get update && rosdep update
+
+COPY glim_ros1 /root/glim_ros1
+WORKDIR /root/glim_ros1
+RUN /bin/bash -c '. /opt/ros/${ROS_DISTRO}/setup.bash; bloom-generate rosdebian'
+RUN sed -i 's/dh $@/dh $@ --parallel/g' ./debian/rules
+RUN sed -i 's/dh_shlibdeps/dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info/g' ./debian/rules
+RUN sed -i "s/ros-${ROS_DISTRO}-glim-ros/ros-${ROS_DISTRO}-glim-ros${PACKAGE_SUFFIX}/g" ./debian/control
+RUN sed -i "s/ros-${ROS_DISTRO}-glim-ros/ros-${ROS_DISTRO}-glim-ros${PACKAGE_SUFFIX}/g" ./debian/changelog
+RUN sed -i "s/ros-${ROS_DISTRO}-glim-ros/ros-${ROS_DISTRO}-glim-ros${PACKAGE_SUFFIX}/g" ./debian/rules
+RUN DEB_BUILD_OPTIONS="parallel=$(nproc)" fakeroot debian/rules binary
+
+CMD ["bash"]
