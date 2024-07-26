@@ -47,10 +47,17 @@ add_library(glim_ros
 )
 target_include_directories(glim_ros PUBLIC
   include
+  ${OpenCV_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
+  ${GTSAM_INCLUDE_DIRS}
+  ${glim_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 target_link_libraries(glim_ros
-  glim::glim
+  spdlog::spdlog
+  ${OpenCV_LIBRARIES}
+  ${GTSAM_LIBRARIES}
+  ${glim_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
@@ -80,7 +87,7 @@ add_executable(offline_viewer
   src/offline_viewer.cpp
 )
 target_link_libraries(offline_viewer
-  glim::interactive_viewer
+  interactive_viewer
   glim_ros
 )
 
