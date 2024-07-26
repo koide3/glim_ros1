@@ -42,23 +42,15 @@ if(BUILD_WITH_CUDA)
   add_definitions(-DBUILD_GTSAM_POINTS_GPU)
 endif()
 
-include_directories(
-  include
-  ${OpenCV_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIR}
-  ${GTSAM_INCLUDE_DIRS}
-  ${glim_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-)
-
 add_library(glim_ros
   src/glim_ros/glim_ros.cpp
 )
+target_include_directories(glim_ros PUBLIC
+  include
+  ${catkin_INCLUDE_DIRS}
+)
 target_link_libraries(glim_ros
-  spdlog::spdlog
-  ${OpenCV_LIBRARIES}
-  ${GTSAM_LIBRARIES}
-  ${glim_LIBRARIES}
+  glim::glim
   ${catkin_LIBRARIES}
 )
 
@@ -83,12 +75,22 @@ target_link_libraries(glim_rosbag
   glim_ros
 )
 
-if(BUILD_WITH_VIEWER)
-  add_executable(offline_viewer
-    src/offline_viewer.cpp
-  )
-  target_link_libraries(offline_viewer
-    ${glim_LIBRARIES}
-    ${catkin_LIBRARIES}
-  )
-endif()
+
+add_executable(offline_viewer
+  src/offline_viewer.cpp
+)
+target_link_libraries(offline_viewer
+  glim::interactive_viewer
+  glim_ros
+)
+
+#############
+## Install ##
+#############
+install(DIRECTORY include/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+
+install(TARGETS glim_ros rviz_viewer glim_rosnode glim_rosbag offline_viewer
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

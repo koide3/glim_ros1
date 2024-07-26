@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>glim_ros</name>
-  <version>0.0.0</version>
+  <version>1.0.1</version>
   <description>3D LiDAR-IMU Mapping Framework</description>
 
   <maintainer email="k.koide@aist.go.jp">k.koide</maintainer>
