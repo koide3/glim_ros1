@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.16)
 project(glim_ros)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -26,8 +26,8 @@ find_package(spdlog REQUIRED)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES glim_ros
-#  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
+#  CATKIN_DEPENDS glim
+#  DEPENDS glim
 )
 
 ###########
@@ -42,23 +42,31 @@ if(BUILD_WITH_CUDA)
   add_definitions(-DBUILD_GTSAM_POINTS_GPU)
 endif()
 
-include_directories(
-  include
-  ${OpenCV_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIR}
-  ${GTSAM_INCLUDE_DIRS}
-  ${glim_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-)
+# if glim::glim does not exist
+if (NOT TARGET glim::glim)
+  add_library(glim::glim INTERFACE IMPORTED GLOBAL)
+  set_target_properties(glim::glim PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${glim_INCLUDE_DIRS}"
+    INTERFACE_LINK_LIBRARIES "${glim_LIBRARIES}"
+  )
+
+  add_library(glim::interactive_viewer INTERFACE IMPORTED GLOBAL)
+  set_target_properties(glim::interactive_viewer PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${glim_INCLUDE_DIRS}"
+    INTERFACE_LINK_LIBRARIES interactive_viewer
+  )
+endif()
+
 
 add_library(glim_ros
   src/glim_ros/glim_ros.cpp
 )
+target_include_directories(glim_ros PUBLIC
+  include
+  ${catkin_INCLUDE_DIRS}
+)
 target_link_libraries(glim_ros
-  spdlog::spdlog
-  ${OpenCV_LIBRARIES}
-  ${GTSAM_LIBRARIES}
-  ${glim_LIBRARIES}
+  glim::glim
   ${catkin_LIBRARIES}
 )
 
@@ -83,12 +91,24 @@ target_link_libraries(glim_rosbag
   glim_ros
 )
 
+
 if(BUILD_WITH_VIEWER)
   add_executable(offline_viewer
     src/offline_viewer.cpp
   )
   target_link_libraries(offline_viewer
-    ${glim_LIBRARIES}
-    ${catkin_LIBRARIES}
+    glim::interactive_viewer
+    glim_ros
   )
 endif()
+
+#############
+## Install ##
+#############
+install(DIRECTORY include/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+
+install(TARGETS glim_ros rviz_viewer glim_rosnode glim_rosbag offline_viewer
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
