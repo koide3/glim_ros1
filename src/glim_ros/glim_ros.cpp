@@ -63,6 +63,8 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
   glim::GlobalConfig::instance(config_path);
   glim::Config config_ros(glim::GlobalConfig::get_config_path("config_ros"));
 
+  keep_raw_points = config_ros.param<bool>("glim_ros", "keep_raw_points", false);
+
   // Preprocessing
   imu_time_offset = config_ros.param<double>("glim_ros", "imu_time_offset", 0.0);
   acc_scale = config_ros.param<double>("glim_ros", "acc_scale", 1.0);
@@ -198,9 +200,11 @@ void GlimROS::insert_frame(const glim::RawPoints::Ptr& raw_points) {
     return;
   }
 
-  // note: Raw points are used only in extension modules for visualization purposes.
-  //       If you need to reduce the memory footprint, you can safely comment out the following line.
-  preprocessed->raw_points = raw_points;
+  if (keep_raw_points) {
+    // note: Raw points are used only in extension modules for visualization purposes.
+    //       If you need to reduce the memory footprint, you can safely comment out the following line.
+    preprocessed->raw_points = raw_points;
+  }
 
   while (odometry_estimation->workload() > 10) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
