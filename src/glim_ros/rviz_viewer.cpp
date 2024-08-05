@@ -11,12 +11,14 @@
 #include <gtsam_points/types/point_cloud_cpu.hpp>
 #include <glim/odometry/callbacks.hpp>
 #include <glim/mapping/callbacks.hpp>
+#include <glim/util/config.hpp>
+#include <glim/util/logging.hpp>
 #include <glim/util/trajectory_manager.hpp>
 #include <glim/util/ros_cloud_converter.hpp>
 
 namespace glim {
 
-RvizViewer::RvizViewer() : nh(), private_nh("~") {
+RvizViewer::RvizViewer() : nh(), private_nh("~"), tf_buffer(), tf_listener(tf_buffer), tf_broadcaster(), logger(create_module_logger("rviz")) {
   points_pub = private_nh.advertise<sensor_msgs::PointCloud2>("/glim_ros/points", 1);
   map_pub = private_nh.advertise<sensor_msgs::PointCloud2>("/glim_ros/map", 1, true);
 
@@ -24,10 +26,19 @@ RvizViewer::RvizViewer() : nh(), private_nh("~") {
   pose_pub = private_nh.advertise<geometry_msgs::PoseStamped>("/glim_ros/pose", 1);
   transform_pub = private_nh.advertise<geometry_msgs::TransformStamped>("/glim_ros/transform", 1);
 
-  imu_frame_id = "imu";
-  lidar_frame_id = "lidar";
-  odom_frame_id = "odom";
-  world_frame_id = "world";
+  const Config config(GlobalConfig::get_config_path("config_ros"));
+
+  imu_frame_id = config.param<std::string>("glim_ros", "imu_frame_id", "imu");
+  lidar_frame_id = config.param<std::string>("glim_ros", "lidar_frame_id", "lidar");
+  base_frame_id = config.param<std::string>("glim_ros", "base_frame_id", "");
+  if (base_frame_id.empty()) {
+    base_frame_id = imu_frame_id;
+  }
+
+  odom_frame_id = config.param<std::string>("glim_ros", "odom_frame_id", "odom");
+  map_frame_id = config.param<std::string>("glim_ros", "map_frame_id", "map");
+  publish_imu2lidar = config.param<bool>("glim_ros", "publish_imu2lidar", true);
+  tf_time_offset = config.param<double>("glim_ros", "tf_time_offset", 1e-6);
 
   trajectory.reset(new TrajectoryManager);
 
@@ -70,7 +81,7 @@ void RvizViewer::odometry_new_frame(const EstimationFrame::ConstPtr& new_frame) 
         frame_id = imu_frame_id;
         break;
       case FrameID::WORLD:
-        frame_id = world_frame_id;
+        frame_id = map_frame_id;
         break;
     }
 
@@ -100,34 +111,52 @@ void RvizViewer::odometry_new_frame(const EstimationFrame::ConstPtr& new_frame) 
     quat_world_imu = Eigen::Quaterniond(T_world_imu.linear());
   }
 
-  // Odom -> IMU
-  geometry_msgs::TransformStamped trans;
-  trans.header.stamp = ros::Time(new_frame->stamp);
-  trans.header.frame_id = odom_frame_id;
-  trans.child_frame_id = imu_frame_id;
-  trans.transform.translation.x = T_odom_imu.translation().x();
-  trans.transform.translation.y = T_odom_imu.translation().y();
-  trans.transform.translation.z = T_odom_imu.translation().z();
-  trans.transform.rotation.x = quat_odom_imu.x();
-  trans.transform.rotation.y = quat_odom_imu.y();
-  trans.transform.rotation.z = quat_odom_imu.z();
-  trans.transform.rotation.w = quat_odom_imu.w();
-  tf_broadcaster.sendTransform(trans);
+  const auto stamp = from_sec(new_frame->stamp);
+  const auto tf_stamp = from_sec(new_frame->stamp + tf_time_offset);
 
-  // IMU -> LiDAR
-  trans.header.frame_id = imu_frame_id;
-  trans.child_frame_id = lidar_frame_id;
-  trans.transform.translation.x = T_lidar_imu.translation().x();
-  trans.transform.translation.y = T_lidar_imu.translation().y();
-  trans.transform.translation.z = T_lidar_imu.translation().z();
-  trans.transform.rotation.x = quat_lidar_imu.x();
-  trans.transform.rotation.y = quat_lidar_imu.y();
-  trans.transform.rotation.z = quat_lidar_imu.z();
-  trans.transform.rotation.w = quat_lidar_imu.w();
-  tf_broadcaster.sendTransform(trans);
+  // Odom -> Base
+  geometry_msgs::TransformStamped trans;
+  trans.header.stamp = tf_stamp;
+  trans.header.frame_id = odom_frame_id;
+  trans.child_frame_id = base_frame_id;
+
+  if (base_frame_id == imu_frame_id) {
+    trans.transform.translation.x = T_odom_imu.translation().x();
+    trans.transform.translation.y = T_odom_imu.translation().y();
+    trans.transform.translation.z = T_odom_imu.translation().z();
+    trans.transform.rotation.x = quat_odom_imu.x();
+    trans.transform.rotation.y = quat_odom_imu.y();
+    trans.transform.rotation.z = quat_odom_imu.z();
+    trans.transform.rotation.w = quat_odom_imu.w();
+    tf_broadcaster.sendTransform(trans);
+  } else {
+    try {
+      const auto trans_imu_base = tf_buffer.lookupTransform(imu_frame_id, base_frame_id, stamp);
+      const auto& t = trans_imu_base.transform.translation;
+      const auto& r = trans_imu_base.transform.rotation;
+
+      Eigen::Isometry3d T_imu_base = Eigen::Isometry3d::Identity();
+      T_imu_base.translation() << t.x, t.y, t.z;
+      T_imu_base.linear() = Eigen::Quaterniond(r.w, r.x, r.y, r.z).toRotationMatrix();
+
+      const Eigen::Isometry3d T_odom_base = T_odom_imu * T_imu_base;
+      const Eigen::Quaterniond quat_odom_base(T_odom_base.linear());
+
+      trans.transform.translation.x = T_odom_base.translation().x();
+      trans.transform.translation.y = T_odom_base.translation().y();
+      trans.transform.translation.z = T_odom_base.translation().z();
+      trans.transform.rotation.x = quat_odom_base.x();
+      trans.transform.rotation.y = quat_odom_base.y();
+      trans.transform.rotation.z = quat_odom_base.z();
+      trans.transform.rotation.w = quat_odom_base.w();
+      tf_broadcaster.sendTransform(trans);
+    } catch (const tf2::TransformException& e) {
+      logger->warn("Failed to lookup transform from {} to {} (stamp={}.{}): {}", imu_frame_id, base_frame_id, stamp.sec, stamp.nsec, e.what());
+    }
+  }
 
   // World -> Odom
-  trans.header.frame_id = world_frame_id;
+  trans.header.frame_id = map_frame_id;
   trans.child_frame_id = odom_frame_id;
   trans.transform.translation.x = T_world_odom.translation().x();
   trans.transform.translation.y = T_world_odom.translation().y();
@@ -137,6 +166,20 @@ void RvizViewer::odometry_new_frame(const EstimationFrame::ConstPtr& new_frame) 
   trans.transform.rotation.z = quat_world_odom.z();
   trans.transform.rotation.w = quat_world_odom.w();
   tf_broadcaster.sendTransform(trans);
+
+  // IMU -> LiDAR
+  if (publish_imu2lidar) {
+    trans.header.frame_id = imu_frame_id;
+    trans.child_frame_id = lidar_frame_id;
+    trans.transform.translation.x = T_lidar_imu.translation().x();
+    trans.transform.translation.y = T_lidar_imu.translation().y();
+    trans.transform.translation.z = T_lidar_imu.translation().z();
+    trans.transform.rotation.x = quat_lidar_imu.x();
+    trans.transform.rotation.y = quat_lidar_imu.y();
+    trans.transform.rotation.z = quat_lidar_imu.z();
+    trans.transform.rotation.w = quat_lidar_imu.w();
+    tf_broadcaster.sendTransform(trans);
+  }
 
   if (odom_pub.getNumSubscribers()) {
     nav_msgs::Odometry odom;
@@ -156,7 +199,7 @@ void RvizViewer::odometry_new_frame(const EstimationFrame::ConstPtr& new_frame) 
   if (pose_pub.getNumSubscribers()) {
     geometry_msgs::PoseStamped pose;
     pose.header.stamp = ros::Time(new_frame->stamp);
-    pose.header.frame_id = world_frame_id;
+    pose.header.frame_id = map_frame_id;
     pose.pose.position.x = T_world_imu.translation().x();
     pose.pose.position.y = T_world_imu.translation().y();
     pose.pose.position.z = T_world_imu.translation().z();
@@ -205,6 +248,13 @@ void RvizViewer::globalmap_on_update_submaps(const std::vector<SubMap::Ptr>& sub
       return;
     }
 
+    // Publish global map every 10 seconds
+    const auto now = ros::WallTime::now();
+    if (now - last_globalmap_pub_time < ros::WallDuration(10)) {
+      return;
+    }
+    last_globalmap_pub_time = now;
+
     int total_num_points = 0;
     for (const auto& submap : this->submaps) {
       total_num_points += submap->size();
@@ -222,7 +272,9 @@ void RvizViewer::globalmap_on_update_submaps(const std::vector<SubMap::Ptr>& sub
       begin += submap->size();
     }
 
-    auto points_msg = frame_to_pointcloud2(world_frame_id, ros::Time::now().toSec(), *merged);
+    logger->warn("Publishing global map is computationally demanding and not recommended");
+
+    auto points_msg = frame_to_pointcloud2(map_frame_id, ros::Time::now().toSec(), *merged);
     map_pub.publish(points_msg);
   });
 }
@@ -233,7 +285,13 @@ void RvizViewer::invoke(const std::function<void()>& task) {
 }
 
 void RvizViewer::spin_once() {
-  std::lock_guard<std::mutex> lock(invoke_queue_mutex);
+  std::vector<std::function<void()>> invoke_queue;
+
+  {
+    std::lock_guard<std::mutex> lock(invoke_queue_mutex);
+    invoke_queue.swap(this->invoke_queue);
+  }
+
   for (const auto& task : invoke_queue) {
     task();
   }

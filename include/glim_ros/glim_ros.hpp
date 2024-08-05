@@ -43,6 +43,7 @@ private:
   std::atomic_bool kill_switch;
   std::thread thread;
 
+  bool keep_raw_points;
   double imu_time_offset;
   double acc_scale;
   std::unique_ptr<glim::TimeKeeper> time_keeper;

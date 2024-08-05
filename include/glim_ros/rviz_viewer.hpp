@@ -5,11 +5,17 @@
 #include <thread>
 
 #include <ros/ros.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <glim/odometry/estimation_frame.hpp>
 #include <glim/mapping/sub_map.hpp>
 #include <glim/util/extension_module.hpp>
+
+namespace spdlog {
+class logger;
+}
 
 namespace glim {
 
@@ -35,12 +41,20 @@ private:
   ros::NodeHandle nh;
   ros::NodeHandle private_nh;
 
+
+  tf2_ros::Buffer tf_buffer;
+  tf2_ros::TransformListener tf_listener;
   tf2_ros::TransformBroadcaster tf_broadcaster;
+
+  ros::WallTime last_globalmap_pub_time;
 
   std::string imu_frame_id;
   std::string lidar_frame_id;
+  std::string base_frame_id;
   std::string odom_frame_id;
-  std::string world_frame_id;
+  std::string map_frame_id;
+  bool publish_imu2lidar;
+  double tf_time_offset;
 
   ros::Publisher points_pub;
   ros::Publisher map_pub;
@@ -56,6 +70,9 @@ private:
 
   std::mutex invoke_queue_mutex;
   std::vector<std::function<void()>> invoke_queue;
+
+  // Logging
+  std::shared_ptr<spdlog::logger> logger;
 };
 
 }  // namespace glim
