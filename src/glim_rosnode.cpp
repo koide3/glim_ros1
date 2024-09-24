@@ -51,9 +51,7 @@ public:
   }
 
   void spin() {
-    while (ros::ok()) {
-      ros::spinOnce();
-    }
+    ros::spin();
 
     glim_ros->wait(true);
     glim_ros->save("/tmp/dump");
