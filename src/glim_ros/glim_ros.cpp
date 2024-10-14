@@ -85,23 +85,27 @@ GlimROS::GlimROS(ros::NodeHandle& nh) {
   odometry_estimation.reset(new glim::AsyncOdometryEstimation(odom, odom->requires_imu()));
 
   // Sub mapping
-  const std::string sub_mapping_so_name = glim::Config(glim::GlobalConfig::get_config_path("config_sub_mapping")).param<std::string>("sub_mapping", "so_name", "libsub_mapping.so");
-  if (!sub_mapping_so_name.empty()) {
-    spdlog::info("load {}", sub_mapping_so_name);
-    auto sub = SubMappingBase::load_module(sub_mapping_so_name);
-    if (sub) {
-      sub_mapping.reset(new AsyncSubMapping(sub));
+  if (config_ros.param<bool>("glim_ros", "enable_local_mapping", true)) {
+    const std::string sub_mapping_so_name = glim::Config(glim::GlobalConfig::get_config_path("config_sub_mapping")).param<std::string>("sub_mapping", "so_name", "libsub_mapping.so");
+    if (!sub_mapping_so_name.empty()) {
+      spdlog::info("load {}", sub_mapping_so_name);
+      auto sub = SubMappingBase::load_module(sub_mapping_so_name);
+      if (sub) {
+        sub_mapping.reset(new AsyncSubMapping(sub));
+      }
     }
   }
 
   // Global mapping
-  const std::string global_mapping_so_name =
-    glim::Config(glim::GlobalConfig::get_config_path("config_global_mapping")).param<std::string>("global_mapping", "so_name", "libglobal_mapping.so");
-  if (!global_mapping_so_name.empty()) {
-    spdlog::info("load {}", global_mapping_so_name);
-    auto global = GlobalMappingBase::load_module(global_mapping_so_name);
-    if (global) {
-      global_mapping.reset(new AsyncGlobalMapping(global));
+  if (config_ros.param<bool>("glim_ros", "enable_global_mapping", true)) {
+    const std::string global_mapping_so_name =
+      glim::Config(glim::GlobalConfig::get_config_path("config_global_mapping")).param<std::string>("global_mapping", "so_name", "libglobal_mapping.so");
+    if (!global_mapping_so_name.empty()) {
+      spdlog::info("load {}", global_mapping_so_name);
+      auto global = GlobalMappingBase::load_module(global_mapping_so_name);
+      if (global) {
+        global_mapping.reset(new AsyncGlobalMapping(global));
+      }
     }
   }
 
